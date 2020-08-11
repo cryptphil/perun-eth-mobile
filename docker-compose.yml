@@ -40,6 +40,11 @@ services:
     command: >
       bash -c "
         set -e
+        sleep 25
+        echo 'Connecting'
+        adb connect alice:5555
+        adb connect bob:5555
+        adb devices
         echo 'Copy'
         cp -R /src/ /pwd/
         cd /pwd/
@@ -49,9 +54,6 @@ services:
         rm -rf .gradle app/build/
         gradle clean
         gradle assembleDebug
-        adb connect alice:5555
-        adb connect bob:5555
-        adb devices
         gradle installDebugAndroidTest installDebug
         echo 'Gradle done'
         adb -s   bob:5555 forward tcp:5751 tcp:5750
