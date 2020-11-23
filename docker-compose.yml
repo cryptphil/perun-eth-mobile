@@ -1,0 +1,94 @@
+version: "3.0"
+services:
+  ganache:
+    image: "trufflesuite/ganache-cli"
+    command: --host 0.0.0.0 --account="0x7d51a817ee07c3f28581c47a5072142193337fdca4d7911e58c5af2d03895d1a,100000000000000000000000" --account="0x6aeeb7f09e757baa9d3935a042c3d0d46a2eda19e9b676283dce4eaf32e29dc9,100000000000000000000000" -b 1
+    networks:
+      vpcbr:
+        ipv4_address: 10.5.0.9
+    ports:
+      - 8545
+
+  alice:
+    image: budtmo/docker-android-x86-10.0
+    privileged: true
+    networks:
+      vpcbr:
+        ipv4_address: 10.5.0.10
+    expose:
+      - 5750
+      - 5555
+    environment:
+      - DEVICE=Nexus S
+    logging:
+      driver: "none"
+
+  bob:
+    image: budtmo/docker-android-x86-10.0
+    privileged: true
+    networks:
+      vpcbr:
+        ipv4_address: 10.5.0.11
+    ports:
+      - "6080:6080"
+    expose:
+      - 5750
+      - 5555
+    environment:
+      - DEVICE=Nexus S
+    logging:
+      driver: "none"
+
+  tester:
+    image: perunnetwork/prnm-ci
+    command: >
+      bash -c "
+        set -e
+        echo 'Copy'
+        cp -R /src/ /pwd/
+        cd /pwd/
+        echo 'Generating bindings, this takes some time'
+        gomobile bind -o android/app/prnm.aar -target=android
+        cd android
+        rm -rf .gradle app/build/
+        gradle -w clean
+        adb connect alice:5555
+        adb connect bob:5555
+        adb devices
+        gradle -w installDebugAndroidTest installDebug
+        echo 'Gradle done'
+        adb -s   bob:5555 forward tcp:5751 tcp:5750
+        adb -s alice:5555 forward tcp:5752 tcp:5750
+        (socat tcp4-listen:5750,reuseaddr,fork tcp:localhost:5751 &)
+        (socat tcp4-listen:5753,reuseaddr,fork tcp:localhost:5752 &)
+        (adb -s alice:5555 logcat -b main &)
+        (adb -s bob:5555   logcat -b main &)
+        echo 'First tests:'
+        adb -s alice:5555 shell am instrument -w -r -e debug false -e class 'network.perun.app.PrnmTest#runFirstTestAlice' network.perun.app.test/androidx.test.runner.AndroidJUnitRunner & ALICE=$$!
+        adb -s bob:5555 shell am instrument -w -r -e debug false -e class 'network.perun.app.PrnmTest#runFirstTestBob' network.perun.app.test/androidx.test.runner.AndroidJUnitRunner & BOB=$$!
+        wait $$ALICE $$BOB || exit 1
+        echo 'Second tests:'
+        adb -s alice:5555 shell am instrument -w -r -e debug false -e class 'network.perun.app.PrnmTest#runSecondTestAlice' network.perun.app.test/androidx.test.runner.AndroidJUnitRunner & ALICE=$$!
+        adb -s bob:5555 shell am instrument -w -r -e debug false -e class 'network.perun.app.PrnmTest#runSecondTestBob' network.perun.app.test/androidx.test.runner.AndroidJUnitRunner & BOB=$$!
+        wait $$ALICE $$BOB"
+
+    ulimits:
+      memlock: 67108864
+    networks:
+      vpcbr:
+        ipv4_address: 10.5.0.6
+    expose:
+      - 5750
+      - 5753
+    volumes:
+      - .:/src
+    depends_on:
+      - alice
+      - bob
+
+networks:
+  vpcbr:
+    driver: bridge
+    ipam:
+     config:
+       - subnet: 10.5.0.0/16
