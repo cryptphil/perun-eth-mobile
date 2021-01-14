@@ -30,5 +30,6 @@ android {
 
 dependencies {
     implementation 'com.android.support:appcompat-v7:22.1.1'
-    implementation (name:'prnm', ext:'aar')
+    // implementation (name:'prnm', ext:'aar')
+    implementation files('src/main/libs/prnm.aar')
 }
