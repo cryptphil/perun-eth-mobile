@@ -77,7 +77,7 @@ func main() {
 		"\nListening on port: " + port +
 		"\nRelay Station is now running..." +
 		"\n------------------------" +
-		"\nRun: 'relay-client.exe -cli -id " + peer.Encode(relayinfo.ID) + " -addr " +
+		"\nRun: 'relay-client.exe -id " + peer.Encode(relayinfo.ID) + " -addr " +
 		"/ip4/" + string(ip) + "/tcp/" + fmt.Sprint(sourcePort) +
 		"' on another console to get a client to connect to this relay server." +
 		"\n------------------------"
