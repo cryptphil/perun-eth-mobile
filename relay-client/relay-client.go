@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"crypto/rand"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -12,6 +13,7 @@ import (
 	"strings"
 
 	libp2p "github.com/libp2p/go-libp2p"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	network "github.com/libp2p/go-libp2p-core/network"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	swarm "github.com/libp2p/go-libp2p-swarm"
@@ -102,11 +104,21 @@ func main() {
 		Addrs: addrs,
 	}
 
-	//Client Erstellung
+	// Creates a new random RSA key pair for this host.
+	r := rand.Reader
+	prvKey, _, err := crypto.GenerateKeyPairWithReader(crypto.RSA, 2048, r)
+	if err != nil {
+		panic(err)
+	}
+
+	// Construct a new libp2p client for our relay-server.
+	// Background()		-
+	// EnableRelay() 	-
+	// Identity(prvKey)	- Use a RSA private key to generate the ID of the host.
 	h1, err := libp2p.New(
 		context.Background(),
 		libp2p.EnableRelay(),
-		//libp2p.EnableAutoRelay(),
+		libp2p.Identity(prvKey),
 	)
 	if err != nil {
 		panic(err)

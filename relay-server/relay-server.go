@@ -6,10 +6,13 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+
+	mrand "math/rand"
 	"net/http"
 	"os"
 
 	libp2p "github.com/libp2p/go-libp2p"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 
@@ -26,6 +29,16 @@ func main() {
 		os.Exit(0)
 	}
 
+	// Use the constant number 1234 as the randomness source to generate the peer ID.
+	// This will always generate the same host ID on multiple executions, unless you change the number.
+	// If you don't want that use r := rand.Reader instead
+	r := mrand.New(mrand.NewSource(int64(1234)))
+	// Creates a new RSA key pair for this host.
+	prvKey, _, err := crypto.GenerateKeyPairWithReader(crypto.RSA, 2048, r)
+	if err != nil {
+		panic(err)
+	}
+
 	// Fetch own _public_ IPv4 address using ipify api
 	log.Println("Fetching own public IPv4 address...")
 	res, _ := http.Get("https://api.ipify.org")
@@ -37,13 +50,14 @@ func main() {
 	sourcePort := 5574
 	sourceMultiAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", sourcePort))
 
-	// Construct a new libp2p host: our relay server
-	// EnableRelay() 	-
-	// circuit.OptHop 	-
-	// ListenAddrs()	-
+	// Construct a new libp2p host: our relay server.
+	// EnableRelay(circuit.OptHop) 	-
+	// ListenAddrs(sourceMultiAddr)	-
+	// Identity(prvKey)				- Use a RSA private key to generate the ID of the host.
 	relay, err := libp2p.New(context.Background(),
 		libp2p.EnableRelay(circuit.OptHop),
 		libp2p.ListenAddrs(sourceMultiAddr),
+		libp2p.Identity(prvKey),
 	)
 	if err != nil {
 		log.Fatalln(err)
