@@ -15,7 +15,7 @@ gomobile init
 git clone https://github.com/perun-network/perun-eth-mobile
 # Generate the bindings
 cd perun-eth-mobile
-gomobile bind -o android/app/prnm.aar -target=android
+gomobile bind -o android/app/src/main/libs/prnm.aar -target=android
 ```
 
 The `android/` folder is an Android Studio Project, the only two important files are:  
