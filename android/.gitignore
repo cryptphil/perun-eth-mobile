@@ -1,6 +1,6 @@
 # Binding files
 app/prnm-sources.jar
-app/prnm.aar
+
 
 # Android studio
 .project
@@ -29,7 +29,7 @@ gradle-app.setting
 # Android
 # Built application files
 *.apk
-*.aar
+#*.aar
 *.ap_
 *.aab
 

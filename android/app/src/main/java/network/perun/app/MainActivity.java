@@ -41,7 +41,7 @@ public class MainActivity extends Activity {
             Log.i("prnm", "Address: " +onChain.toHex());
             // 10.0.2.2 is the IP of the host PC when using Android Simulator and the host is running a ganache-cli.
             // 8545 is the standart port of ganache-cli.
-            String ethUrl = "ws://10.0.2.2:8545";
+            String ethUrl = "ws://52.215.183.196:8545";
 
             // Using null as either Adjudicator or AssetHolder tells the Client to deploy the contracts,
             // in this case we already deployed them and enter their addresses.
