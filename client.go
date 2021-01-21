@@ -128,7 +128,9 @@ func (c *Client) Close() error {
 // Incoming proposals and updates are forwarded to the passed handlers.
 // ref https://pkg.go.dev/perun.network/go-perun/client?tab=doc#Client.Handle
 func (c *Client) Handle(ph ProposalHandler, uh UpdateHandler) {
+	log.Println("go-wrapper, client.go, Handle, Beginn")
 	c.client.Handle(&proposalHandler{c: c, h: ph}, &updateHandler{h: uh})
+	log.Println("go-wrapper, client.go, Handle, Ende")
 }
 
 // OnNewChannel sets a handler to be called whenever a new channel is created
@@ -138,9 +140,11 @@ func (c *Client) Handle(ph ProposalHandler, uh UpdateHandler) {
 // Start the watcher routine here, if needed.
 // ref https://pkg.go.dev/perun.network/go-perun/client?tab=doc#Client.OnNewChannel
 func (c *Client) OnNewChannel(callback NewChannelCallback) {
+	log.Println("go-wrapper, client.go, OnNewChannel, Beginn")
 	c.client.OnNewChannel(func(ch *client.Channel) {
 		callback.OnNew(&PaymentChannel{ch})
 	})
+	log.Println("go-wrapper, client.go, OnNewChannel, Ende")
 }
 
 // EnablePersistence loads or creates a levelDB database at the given `dbPath`

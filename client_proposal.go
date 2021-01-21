@@ -39,10 +39,12 @@ func (c *Client) ProposeChannel(
 	challengeDuration int64,
 	initialBals *BigInts,
 ) (*PaymentChannel, error) {
+	log.Println("go-wrapper, client_proposal.go, ProposeChannel, 1")
 	alloc := &channel.Allocation{
 		Assets:   []channel.Asset{(*ethwallet.Address)(&c.cfg.AssetHolder.addr)},
 		Balances: [][]channel.Bal{initialBals.values},
 	}
+	log.Println("go-wrapper, client_proposal.go, ProposeChannel, 2")
 	prop, err := client.NewLedgerChannelProposal(
 		uint64(challengeDuration),
 		c.wallet.NewAccount().Address(),
@@ -52,7 +54,9 @@ func (c *Client) ProposeChannel(
 	if err != nil {
 		return nil, err
 	}
+	log.Println("go-wrapper, client_proposal.go, ProposeChannel, 3")
 	_ch, err := c.client.ProposeChannel(ctx.ctx, prop)
+	log.Println("go-wrapper, client_proposal.go, ProposeChannel, 4")
 	return &PaymentChannel{_ch}, err
 }
 
