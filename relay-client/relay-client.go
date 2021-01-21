@@ -6,11 +6,8 @@ import (
 	"crypto/rand"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
-	"net/http"
 	"os"
-	"strings"
 
 	libp2p "github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p-core/crypto"
@@ -19,8 +16,6 @@ import (
 	swarm "github.com/libp2p/go-libp2p-swarm"
 	ma "github.com/multiformats/go-multiaddr"
 )
-
-//-------------
 
 func handleStream(s network.Stream) {
 	log.Println()
@@ -68,37 +63,18 @@ func main() {
 	relayInfoAddrs := flag.String("addr", "", "ADDRS")
 	flag.Parse()
 
-	// Fetch own _public_ IPv4 address using ipify api
-	log.Println("Fetching own public IPv4 address...")
-	res, _ := http.Get("https://api.ipify.org")
-	ip, _ := ioutil.ReadAll(res.Body)
-	log.Println("Received own public IPv4 address")
-
-	//Building Client or Relay
-	//Client muss die Mutliaddr vom Relay wieder zusammen setzen
-	splitS := strings.Split(*relayInfoAddrs, "_")
-	var tempAddr [6]ma.Multiaddr
-	for i, s := range splitS {
-		fmt.Println("MMMM " + splitS[i])
-		temp, err := ma.NewMultiaddr(s)
-
-		if err != nil {
-			panic(err)
-		} else {
-			tempAddr[i] = temp
-		}
-
-	}
-	addrs := []ma.Multiaddr{tempAddr[0], tempAddr[1], tempAddr[2],
-		tempAddr[3], tempAddr[4], tempAddr[5]}
-
-	//Client baut die ID vom Relay auf
+	// Parse Relay Peer ID
 	id, err := peer.Decode(*relayInfoID)
 	if err != nil {
 		panic(err)
 	}
-
-	//relayInfo
+	// Parse Relay Multiadress
+	tmp, err := ma.NewMultiaddr(*relayInfoAddrs)
+	if err != nil {
+		panic(err)
+	}
+	addrs := []ma.Multiaddr{tmp}
+	// Build now relay's AddrInfo
 	relayInfo := peer.AddrInfo{
 		ID:    id,
 		Addrs: addrs,
@@ -115,7 +91,7 @@ func main() {
 	// Background()		-
 	// EnableRelay() 	-
 	// Identity(prvKey)	- Use a RSA private key to generate the ID of the host.
-	h1, err := libp2p.New(
+	client, err := libp2p.New(
 		context.Background(),
 		libp2p.EnableRelay(),
 		libp2p.Identity(prvKey),
@@ -124,34 +100,17 @@ func main() {
 		panic(err)
 	}
 
-	h1ID := h1.ID()
-
+	// Connect to relay server
 	fmt.Println("Connecting to Relay...")
-	if err := h1.Connect(context.Background(), relayInfo); err != nil {
+	if err := client.Connect(context.Background(), relayInfo); err != nil {
 		panic(err)
 	}
+	fmt.Println(".... Successful!")
 
-	//Setup protocol handler
-	h1.SetStreamHandler("/client", handleStream)
+	// Setup protocol handler
+	client.SetStreamHandler("/client", handleStream)
 
-	//IP from Relay Setup
-	ipRunclean := relayInfo.Addrs[0]
-	//fmt.Println(ipRunclean)
-	ipRclean := strings.Split(ipRunclean.String(), "/")
-	ipR := ipRclean[2]
-	//fmt.Println(ipR)
-
-	//Convert public IP into strings
-	ipS := string(ip)
-	fmt.Println()
-	fmt.Println()
-	fmt.Println()
-	fmt.Println()
-	fmt.Println("Successful!")
-
-	fmt.Println("MY IPV4: ", ipS)
-	fmt.Println("RELAY IPV4: ", ipR)
-
+	// Search for a local available port.
 	var port string
 	for _, la := range relayInfo.Addrs {
 		if p, err := la.ValueForProtocol(ma.P_TCP); err == nil {
@@ -163,17 +122,18 @@ func main() {
 		panic("was not able to find actual local port")
 	}
 
-	fullAddr := "/ip4/" + ipR + "/tcp/" + port + "/p2p/" + relayInfo.ID.Pretty() + "/p2p-circuit/p2p/" + h1ID.Pretty()
+	// Build own full address
+	fullAddr := relayInfo.Addrs[0].String() + "/p2p/" + relayInfo.ID.Pretty() + "/p2p-circuit/p2p/" + client.ID().Pretty()
 
 	//Wait for IP from different User OR connect with IP
 	fmt.Println("--------------------------")
-	fmt.Println("My ID to connect to: ", h1ID.Pretty())
+	fmt.Println("My ID to connect to: ", client.ID().Pretty())
 	fmt.Println("My Address to connect to: ", fullAddr)
 	fmt.Println("--------------------------")
 	fmt.Println("Waiting for Connection...")
 	fmt.Print("OR Connect to ID: ")
 
-	//Scan ID input
+	// Scan ID input
 	var text string
 	fmt.Scanln(&text)
 
@@ -186,23 +146,23 @@ func main() {
 
 	if decodable {
 		//relayAddr ADDRESSE FÜR ANOTHERCLIENT
-		relayaddr, err := ma.NewMultiaddr("/ip4/" + ipR + "/tcp/" + port + "/p2p/" + relayInfo.ID.Pretty() + "/p2p-circuit/p2p/" + textDec.Pretty())
+		relayaddr, err := ma.NewMultiaddr(relayInfo.Addrs[0].String() + "/p2p/" + relayInfo.ID.Pretty() + "/p2p-circuit/p2p/" + textDec.Pretty())
 		if err != nil {
 			panic(err)
 		}
 
 		//Redialing hacked
-		h1.Network().(*swarm.Swarm).Backoff().Clear(textDec)
+		client.Network().(*swarm.Swarm).Backoff().Clear(textDec)
 		anotherClientInfo := peer.AddrInfo{
 			ID:    textDec,
 			Addrs: []ma.Multiaddr{relayaddr},
 		}
-		if err := h1.Connect(context.Background(), anotherClientInfo); err != nil {
+		if err := client.Connect(context.Background(), anotherClientInfo); err != nil {
 			panic(err)
 		}
 
 		//Connecting
-		s, err := h1.NewStream(context.Background(), anotherClientInfo.ID, "/client")
+		s, err := client.NewStream(context.Background(), anotherClientInfo.ID, "/client")
 		if err != nil {
 			fmt.Println("Not working: ", err)
 			return
