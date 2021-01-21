@@ -100,6 +100,7 @@ type (
 // passed types from the go-perun/client package into their local conterparts
 // and then calling the prnm.ProposalHandler.
 func (h *proposalHandler) HandleProposal(_prop client.ChannelProposal, _resp *client.ProposalResponder) {
+	log.Println("go-wrapper, client_proposal.go, HandleProposal, 1")
 	ledgerProp, ok := _prop.(*client.LedgerChannelProposal)
 	if !ok {
 		// We can not reject here since there is no context available.
@@ -110,6 +111,7 @@ func (h *proposalHandler) HandleProposal(_prop client.ChannelProposal, _resp *cl
 		log.Warn("Ignored proposal: ", err)
 		return
 	}
+	log.Println("go-wrapper, client_proposal.go, HandleProposal, 2")
 	// Security Note: we don't check the remote nonce or channel participant. If
 	// this code were to evolve to production grade, this needs to be taken care
 	// of. In this case, at least the Nonce should be part of the ChannelProposal
@@ -121,6 +123,7 @@ func (h *proposalHandler) HandleProposal(_prop client.ChannelProposal, _resp *cl
 	}
 	resp := &ProposalResponder{c: h.c, p: *ledgerProp, r: _resp}
 	h.h.HandleProposal(prop, resp)
+	log.Println("go-wrapper, client_proposal.go, HandleProposal, 3")
 }
 
 // Accept lets the user signal that they want to accept the channel proposal.
@@ -136,6 +139,7 @@ func (h *proposalHandler) HandleProposal(_prop client.ChannelProposal, _resp *cl
 // ChallengeDuration has passed (at least for real blockchain backends with wall
 // time), or the channel cannot be settled if a peer times out funding.
 func (r *ProposalResponder) Accept(ctx *Context) (*PaymentChannel, error) {
+	log.Println("go-wrapper, client_proposal.go, Accept, 1")
 	// Generate new account as channel participant.
 	account := r.c.wallet.NewAccount().Address()
 	acceptor := r.p.Accept(account, client.WithRandomNonce())
@@ -147,10 +151,12 @@ func (r *ProposalResponder) Accept(ctx *Context) (*PaymentChannel, error) {
 // Returns whether the rejection message was successfully sent. Panics if the
 // proposal was already accepted or rejected.
 func (r *ProposalResponder) Reject(ctx *Context, reason string) error {
+	log.Println("go-wrapper, client_proposal.go, Reject, 1")
 	return r.r.Reject(ctx.ctx, reason)
 }
 
 func checkProp(prop client.LedgerChannelProposal) error {
+	log.Println("go-wrapper, client_proposal.go, chechProp, 1")
 	switch {
 	case len(prop.InitBals.Assets) != 1:
 		return errors.New("only single-asset channels are supported")

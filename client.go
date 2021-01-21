@@ -65,16 +65,19 @@ type (
 //  - sets the `cfg`s Adjudicator and AssetHolder to the deployed contracts
 //    addresses in case they were deployed.
 func NewClient(ctx *Context, cfg *Config, w *Wallet) (*Client, error) {
+	log.Println("go-wrapper, client.go, NewClient, 1")
 	endpoint := fmt.Sprintf("%s:%d", cfg.IP, cfg.Port)
 	listener, err := simple.NewTCPListener(endpoint)
 	if err != nil {
 		return nil, errors.WithMessagef(err, "listening on %s", endpoint)
 	}
+	log.Println("go-wrapper, client.go, NewClient, 2")
 	dialer := simple.NewTCPDialer(time.Second * 15)
 	ethClient, err := ethclient.Dial(cfg.ETHNodeURL)
 	if err != nil {
 		return nil, errors.WithMessage(err, "connecting to ethereum node")
 	}
+	log.Println("go-wrapper, client.go, NewClient, 3")
 
 	acc, err := w.unlock(*cfg.Address)
 	if err != nil {
@@ -84,12 +87,14 @@ func NewClient(ctx *Context, cfg *Config, w *Wallet) (*Client, error) {
 	if err := setupContracts(ctx.ctx, cb, acc.Account, cfg); err != nil {
 		return nil, errors.WithMessage(err, "setting up contracts")
 	}
+	log.Println("go-wrapper, client.go, NewClient,  4")
 
 	bus := net.NewBus(acc, dialer)
 	adjudicator := ethchannel.NewAdjudicator(cb, common.Address(cfg.Adjudicator.addr), acc.Account.Address, acc.Account)
 	accs := map[ethchannel.Asset]accounts.Account{cfg.AssetHolder.addr: acc.Account}
 	depositor := new(ethchannel.ETHDepositor)
 	deps := map[ethchannel.Asset]ethchannel.Depositor{cfg.AssetHolder.addr: depositor}
+	log.Println("go-wrapper, client.go, NewClient, 5")
 
 	funder := ethchannel.NewFunder(cb, accs, deps)
 	c, err := client.New(acc.Address(), bus, funder, adjudicator, w.w)
@@ -97,6 +102,7 @@ func NewClient(ctx *Context, cfg *Config, w *Wallet) (*Client, error) {
 		return nil, errors.WithMessage(err, "creating client")
 	}
 	go bus.Listen(listener)
+	log.Println("go-wrapper, client.go, NewClient, 6")
 
 	return &Client{cfg: cfg, ethClient: ethClient,
 		client:    c,
@@ -111,6 +117,7 @@ func NewClient(ctx *Context, cfg *Config, w *Wallet) (*Client, error) {
 // ref https://pkg.go.dev/perun.network/go-perun/client?tab=doc#Channel.Close
 // ref https://pkg.go.dev/perun.network/go-perun/channel/persistence/keyvalue?tab=doc#PersistRestorer.Close
 func (c *Client) Close() error {
+	log.Println("go-wrapper, client.go, Close, Beginn")
 	if err := c.client.Close(); err != nil {
 		return errors.WithMessage(err, "closing client")
 	}
@@ -120,6 +127,7 @@ func (c *Client) Close() error {
 	if c.persister != nil {
 		return errors.WithMessage(c.persister.Close(), "closing persister")
 	}
+	log.Println("go-wrapper, client.go, Close, Ende")
 	return nil
 }
 
@@ -154,6 +162,7 @@ func (c *Client) OnNewChannel(callback NewChannelCallback) {
 // This function is not thread safe.
 // ref https://pkg.go.dev/perun.network/go-perun/client?tab=doc#Client.EnablePersistence
 func (c *Client) EnablePersistence(dbPath string) (err error) {
+	log.Println("go-wrapper, client.go, EnablePersistence, 1")
 	var db *leveldb.Database
 
 	db, err = leveldb.LoadDatabase(dbPath)
@@ -172,6 +181,7 @@ func (c *Client) EnablePersistence(dbPath string) (err error) {
 // enough time in the passed context.
 // ref https://pkg.go.dev/perun.network/go-perun/client?tab=doc#Client.Restore
 func (c *Client) Restore(ctx *Context) error {
+	log.Println("go-wrapper, client.go, Restore, 1")
 	if c.persister == nil {
 		return errors.New("persistence not enabled")
 	}
@@ -182,6 +192,7 @@ func (c *Client) Restore(ctx *Context) error {
 // a new channel with said peer. Wraps go-perun/peer/net/Dialer.Register.
 // ref https://pkg.go.dev/perun.network/go-perun/peer/net?tab=doc#Dialer.Register
 func (c *Client) AddPeer(perunID *Address, host string, port int) {
+	log.Println("go-wrapper, client.go, AddPeer, 1")
 	c.dialer.Register((*ethwallet.Address)(&perunID.addr), fmt.Sprintf("%s:%d", host, port))
 }
 
@@ -189,6 +200,7 @@ func (c *Client) AddPeer(perunID *Address, host string, port int) {
 // to the blockchain. Writes the addresses of the deployed contracts back to
 // the `cfg` struct.
 func setupContracts(ctx context.Context, cb ethchannel.ContractBackend, deployer accounts.Account, cfg *Config) error {
+	log.Println("go-wrapper, client.go, setupContracts, 1")
 	if cfg.Adjudicator == nil {
 		adjudicator, err := ethchannel.DeployAdjudicator(ctx, cb, deployer)
 		if err != nil {
@@ -210,6 +222,7 @@ func setupContracts(ctx context.Context, cb ethchannel.ContractBackend, deployer
 
 // OnChainBalance returns the on-chain balance for `address` in Wei.
 func (c *Client) OnChainBalance(ctx *Context, address *Address) (*BigInt, error) {
+	log.Println("go-wrapper, client.go, OnChainBalance, 1")
 	bal, err := c.ethClient.BalanceAt(ctx.ctx, common.Address(address.addr), nil)
 	return &BigInt{bal}, err
 }
