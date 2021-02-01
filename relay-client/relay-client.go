@@ -110,18 +110,6 @@ func main() {
 	// Setup protocol handler
 	client.SetStreamHandler("/client", handleStream)
 
-	// Search for a local available port.
-	var port string
-	for _, la := range relayInfo.Addrs {
-		if p, err := la.ValueForProtocol(ma.P_TCP); err == nil {
-			port = p
-			break
-		}
-	}
-	if port == "" {
-		panic("was not able to find actual local port")
-	}
-
 	// Build own full address
 	fullAddr := relayInfo.Addrs[0].String() + "/p2p/" + relayInfo.ID.Pretty() + "/p2p-circuit/p2p/" + client.ID().Pretty()
 

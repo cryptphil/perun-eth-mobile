@@ -7,12 +7,17 @@ package prnm
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/libp2p/go-libp2p"
+	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p-core/peer"
+	ma "github.com/multiformats/go-multiaddr"
 	"github.com/pkg/errors"
 
 	ethchannel "perun.network/go-perun/backend/ethereum/channel"
@@ -53,6 +58,75 @@ type (
 	}
 )
 
+func main() {
+	log.Println("Main, 1")
+	ConnectToRelay()
+	log.Println("Main, 2")
+}
+
+// ConnectToRelay connects to a specific relay.
+func ConnectToRelay() {
+	log.Println("go-wrapper, client.go, ConnectToRelay, 1")
+	serverID := "QmPyRxsUQfAWR6uYYkSoZQsaM1pra2qpUHE3CMTgrfsTEV"
+	serverAddr := "/ip4/77.12.81.160/tcp/5574"
+
+	// Parse Relay Peer ID
+	id, err := peer.Decode(serverID)
+	if err != nil {
+		panic(err)
+	}
+	// Parse Relay Multiadress
+	tmp, err := ma.NewMultiaddr(serverAddr)
+	if err != nil {
+		panic(err)
+	}
+	addrs := []ma.Multiaddr{tmp}
+	// Build now relay's AddrInfo
+	relayInfo := peer.AddrInfo{
+		ID:    id,
+		Addrs: addrs,
+	}
+
+	// Creates a new random RSA key pair for this host.
+	r := rand.Reader
+	prvKey, _, err := crypto.GenerateKeyPairWithReader(crypto.RSA, 2048, r)
+	if err != nil {
+		panic(err)
+	}
+
+	log.Println("go-wrapper, client.go, ConnectToRelay, 2")
+	// Construct a new libp2p client for our relay-server.
+	// Background()		-
+	// EnableRelay() 	-
+	// Identity(prvKey)	- Use a RSA private key to generate the ID of the host.
+	client, err := libp2p.New(
+		context.Background(),
+		libp2p.EnableRelay(),
+		libp2p.Identity(prvKey),
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	log.Println("go-wrapper, client.go, ConnectToRelay, 3")
+	// Connect to relay server
+	fmt.Println("Connecting to Relay...")
+	if err := client.Connect(context.Background(), relayInfo); err != nil {
+		panic(err)
+	}
+	fmt.Println(".... Successful!")
+
+	log.Println("go-wrapper, client.go, ConnectToRelay, 4")
+	// Setup protocol handler
+	//client.SetStreamHandler("/client", handleStream)
+
+	// Build own full address
+	fullAddr := relayInfo.Addrs[0].String() + "/p2p/" + relayInfo.ID.Pretty() + "/p2p-circuit/p2p/" + client.ID().Pretty()
+
+	log.Println("go-wrapper, client.go, ConnectToRelay, My Peer ID: ", client.ID().Pretty())
+	log.Println("go-wrapper, client.go, ConnectToRelay, My Address: ", fullAddr)
+}
+
 // NewClient sets up a new Client with configuration `cfg`.
 // The Client:
 //  - imports the keystore and unlocks the account
@@ -66,6 +140,12 @@ type (
 //    addresses in case they were deployed.
 func NewClient(ctx *Context, cfg *Config, w *Wallet) (*Client, error) {
 	log.Println("go-wrapper, client.go, NewClient, 1")
+
+	// Verbinde mit Relay
+	ConnectToRelay()
+
+	log.Println("go-wrapper, client.go, NewClient, 1.5")
+
 	endpoint := fmt.Sprintf("%s:%d", cfg.IP, cfg.Port)
 	listener, err := simple.NewTCPListener(endpoint)
 	if err != nil {
