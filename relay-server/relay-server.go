@@ -22,6 +22,8 @@ import (
 func main() {
 	// Display help menu if you the flag "help"
 	help := flag.Bool("help", false, "Display help")
+	// Set a custom port number, defaults to 5574
+	scPort := flag.Int("port", 5574, "Set Port")
 	flag.Parse()
 	if *help {
 		fmt.Printf("This program is a relay server for the perun-network using libp2p\n\n")
@@ -47,7 +49,8 @@ func main() {
 
 	// Build host multiaddress
 	// 0.0.0.0 will listen on any interface device.
-	sourcePort := 5574
+	// sourcePort := 5574
+	sourcePort := *scPort
 	sourceMultiAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", sourcePort))
 
 	// Construct a new libp2p host: our relay server.
