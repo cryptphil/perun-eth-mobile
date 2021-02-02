@@ -54,7 +54,7 @@ func main() {
 	sourceMultiAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", sourcePort))
 
 	// Construct a new libp2p host: our relay server.
-	// EnableRelay(circuit.OptHop) 	-
+	// EnableRelay(circuit.OptHop) 	-Enable relay system and advertise itself as a public relay
 	// ListenAddrs(sourceMultiAddr)	-
 	// Identity(prvKey)				- Use a RSA private key to generate the ID of the host.
 	relay, err := libp2p.New(context.Background(),

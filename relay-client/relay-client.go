@@ -88,13 +88,14 @@ func main() {
 	}
 
 	// Construct a new libp2p client for our relay-server.
-	// Background()		-
-	// EnableRelay() 	-
-	// Identity(prvKey)	- Use a RSA private key to generate the ID of the host.
+	// Background()			-
+	// Identity(prvKey)		- Use a RSA private key to generate the ID of the host.
+	// EnableRelay()		- Enable relay system and configures itself as a node behind a NAT
+	// TODO: Use StaticRelay and EnableAutoRelay instead
 	client, err := libp2p.New(
 		context.Background(),
-		libp2p.EnableRelay(),
 		libp2p.Identity(prvKey),
+		libp2p.EnableRelay(),
 	)
 	if err != nil {
 		panic(err)
