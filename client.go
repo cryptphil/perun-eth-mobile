@@ -30,6 +30,7 @@ import (
 	"perun.network/go-perun/pkg/sortedkv/leveldb"
 	"perun.network/go-perun/wallet"
 	"perun.network/go-perun/wire/net"
+	"perun.network/go-perun/wire/net/simple"
 )
 
 type (
@@ -47,9 +48,9 @@ type (
 		wallet  *keystore.Wallet
 		onChain wallet.Account
 
-		//dialer *simple.Dialer
-		dialer *DialerP2P
-		bus    *net.Bus
+		dialer *simple.Dialer
+		//dialer *DialerP2P
+		bus *net.Bus
 	}
 
 	// NewChannelCallback wraps a `func(*PaymentChannel)`
@@ -61,7 +62,7 @@ type (
 
 const (
 	serverID   = "QmPyRxsUQfAWR6uYYkSoZQsaM1pra2qpUHE3CMTgrfsTEV"
-	serverAddr = "/ip4/77.12.81.160/tcp/5574"
+	serverAddr = "/ip4/77.182.144.14/tcp/5574"
 )
 
 // CreateClientHost connects to a specific relay.
@@ -142,19 +143,19 @@ func NewClient(ctx *Context, cfg *Config, w *Wallet) (*Client, error) {
 	log.Println("go-wrapper, client.go, NewClient, 1")
 
 	// Verbinde mit Relay
-	host := CreateClientHost()
+	CreateClientHost()
 
 	log.Println("go-wrapper, client.go, NewClient, 1.5")
 
 	endpoint := fmt.Sprintf("%s:%d", cfg.IP, cfg.Port)
-	//listener, err := simple.NewTCPListener(endpoint)
-	listener, err := NewTCPListenerP2P(host)
+	listener, err := simple.NewTCPListener(endpoint)
+	//listener, err := NewTCPListenerP2P(host)
 	if err != nil {
 		return nil, errors.WithMessagef(err, "listening on %s", endpoint)
 	}
 	log.Println("go-wrapper, client.go, NewClient, 2")
-	//dialer := simple.NewTCPDialer(time.Second * 15)
-	dialer := NewTCPDialerP2P(time.Second*15, host)
+	dialer := simple.NewTCPDialer(time.Second * 15)
+	//dialer := NewTCPDialerP2P(time.Second*15, host)
 	ethClient, err := ethclient.Dial(cfg.ETHNodeURL)
 	if err != nil {
 		return nil, errors.WithMessage(err, "connecting to ethereum node")

@@ -1,5 +1,5 @@
 // ..
-
+/*
 package prnm
 
 import (
@@ -67,7 +67,7 @@ func (d *DialerP2P) Dial(ctx context.Context, addr wire.Address) (wirenet.Conn, 
 	reader := bufio.NewReader(s)
 	writer := bufio.NewWriter(s)
 	//rw := bufio.NewReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
-	var rwc io.ReadWriteCloser = &ClosableBufio{reader, writer}
+	var rwc io.ReadWriteCloser = &ClosableBufio{*reader, *writer}
 
 	log.Println("go-wrapper, dialerp2p.go, Dial, 4")
 	return wirenet.NewIoConn(rwc), nil
@@ -86,3 +86,4 @@ func (d *DialerP2P) Register(addr wire.Address, address string) {
 	log.Println("go-wrapper, dialerp2p.go, Register, Wallet Key From Wire Addresses looks like ", wallet.Key(addr))
 	log.Println("go-wrapper, dialerp2p.go, Register, only address", address)
 }
+*/

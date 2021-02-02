@@ -1,5 +1,5 @@
 // ...
-
+/*
 package prnm
 
 import (
@@ -18,3 +18,4 @@ func (cb *ClosableBufio) Close() error {
 	//cb.Buffer.Reset()
 	return nil
 }
+*/
