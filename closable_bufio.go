@@ -8,10 +8,13 @@ import (
 
 // ClosableBufio ..-
 type ClosableBufio struct {
-	bufio.ReadWriter
+	//bytes.Buffer
+	bufio.Reader
+	bufio.Writer
 }
 
 // Close ...
 func (cb *ClosableBufio) Close() error {
+	//cb.Buffer.Reset()
 	return nil
 }

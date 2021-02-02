@@ -64,8 +64,10 @@ func (d *DialerP2P) Dial(ctx context.Context, addr wire.Address) (wirenet.Conn, 
 	}
 	log.Println("go-wrapper, dialerp2p.go, Dial, Connected to another Client!")
 
-	rw := bufio.NewReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
-	var rwc io.ReadWriteCloser = &ClosableBufio{*rw}
+	reader := bufio.NewReader(s)
+	writer := bufio.NewWriter(s)
+	//rw := bufio.NewReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
+	var rwc io.ReadWriteCloser = &ClosableBufio{reader, writer}
 
 	log.Println("go-wrapper, dialerp2p.go, Dial, 4")
 	return wirenet.NewIoConn(rwc), nil
