@@ -16,6 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/pkg/errors"
@@ -29,7 +30,6 @@ import (
 	"perun.network/go-perun/pkg/sortedkv/leveldb"
 	"perun.network/go-perun/wallet"
 	"perun.network/go-perun/wire/net"
-	"perun.network/go-perun/wire/net/simple"
 )
 
 type (
@@ -47,7 +47,8 @@ type (
 		wallet  *keystore.Wallet
 		onChain wallet.Account
 
-		dialer *simple.Dialer
+		//dialer *simple.Dialer
+		dialer *DialerP2P
 		bus    *net.Bus
 	}
 
@@ -58,17 +59,14 @@ type (
 	}
 )
 
-func main() {
-	log.Println("Main, 1")
-	ConnectToRelay()
-	log.Println("Main, 2")
-}
+const (
+	serverID   = "QmPyRxsUQfAWR6uYYkSoZQsaM1pra2qpUHE3CMTgrfsTEV"
+	serverAddr = "/ip4/77.12.81.160/tcp/5574"
+)
 
-// ConnectToRelay connects to a specific relay.
-func ConnectToRelay() {
-	log.Println("go-wrapper, client.go, ConnectToRelay, 1")
-	serverID := "QmPyRxsUQfAWR6uYYkSoZQsaM1pra2qpUHE3CMTgrfsTEV"
-	serverAddr := "/ip4/77.12.81.160/tcp/5574"
+// CreateClientHost connects to a specific relay.
+func CreateClientHost() host.Host {
+	log.Println("go-wrapper, client.go, CreateClientHost, 1")
 
 	// Parse Relay Peer ID
 	id, err := peer.Decode(serverID)
@@ -94,7 +92,7 @@ func ConnectToRelay() {
 		panic(err)
 	}
 
-	log.Println("go-wrapper, client.go, ConnectToRelay, 2")
+	log.Println("go-wrapper, client.go, CreateClientHost, 2")
 	// Construct a new libp2p client for our relay-server.
 	// Background()		-
 	// EnableRelay() 	-
@@ -108,7 +106,7 @@ func ConnectToRelay() {
 		panic(err)
 	}
 
-	log.Println("go-wrapper, client.go, ConnectToRelay, 3")
+	log.Println("go-wrapper, client.go, CreateClientHost, 3")
 	// Connect to relay server
 	fmt.Println("Connecting to Relay...")
 	if err := client.Connect(context.Background(), relayInfo); err != nil {
@@ -116,15 +114,17 @@ func ConnectToRelay() {
 	}
 	fmt.Println(".... Successful!")
 
-	log.Println("go-wrapper, client.go, ConnectToRelay, 4")
+	log.Println("go-wrapper, client.go, CreateClientHost, 4")
 	// Setup protocol handler
 	//client.SetStreamHandler("/client", handleStream)
 
 	// Build own full address
 	fullAddr := relayInfo.Addrs[0].String() + "/p2p/" + relayInfo.ID.Pretty() + "/p2p-circuit/p2p/" + client.ID().Pretty()
 
-	log.Println("go-wrapper, client.go, ConnectToRelay, My Peer ID: ", client.ID().Pretty())
-	log.Println("go-wrapper, client.go, ConnectToRelay, My Address: ", fullAddr)
+	log.Println("go-wrapper, client.go, CreateClientHost, My Peer ID: ", client.ID().Pretty())
+	log.Println("go-wrapper, client.go, CreateClientHost, My Address: ", fullAddr)
+
+	return client
 }
 
 // NewClient sets up a new Client with configuration `cfg`.
@@ -142,17 +142,19 @@ func NewClient(ctx *Context, cfg *Config, w *Wallet) (*Client, error) {
 	log.Println("go-wrapper, client.go, NewClient, 1")
 
 	// Verbinde mit Relay
-	ConnectToRelay()
+	host := CreateClientHost()
 
 	log.Println("go-wrapper, client.go, NewClient, 1.5")
 
 	endpoint := fmt.Sprintf("%s:%d", cfg.IP, cfg.Port)
-	listener, err := simple.NewTCPListener(endpoint)
+	//listener, err := simple.NewTCPListener(endpoint)
+	listener, err := NewTCPListenerP2P(host)
 	if err != nil {
 		return nil, errors.WithMessagef(err, "listening on %s", endpoint)
 	}
 	log.Println("go-wrapper, client.go, NewClient, 2")
-	dialer := simple.NewTCPDialer(time.Second * 15)
+	//dialer := simple.NewTCPDialer(time.Second * 15)
+	dialer := NewTCPDialerP2P(time.Second*15, host)
 	ethClient, err := ethclient.Dial(cfg.ETHNodeURL)
 	if err != nil {
 		return nil, errors.WithMessage(err, "connecting to ethereum node")
