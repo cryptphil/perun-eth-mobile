@@ -2,11 +2,10 @@
 // Darmstadt, Germany. All rights reserved. This file is part of
 // perun-eth-mobile. Use of this source code is governed by the Apache 2.0
 // license that can be found in the LICENSE file.
-/*
+
 package prnm
 
 import (
-	"bufio"
 	"io"
 
 	host "github.com/libp2p/go-libp2p-core/host"
@@ -30,10 +29,10 @@ func NewTCPListenerP2P(host host.Host) (*ListenerP2P, error) {
 	host.SetStreamHandler("/client", func(s network.Stream) {
 		log.Println("\nGot a new Stream!")
 		//rw := bufio.NewReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
-		reader := bufio.NewReader(s)
-		writer := bufio.NewWriter(s)
-		var rwc io.ReadWriteCloser = &ClosableBufio{*reader, *writer}
-		myListener.myRwc = rwc
+		//reader := bufio.NewReader(s)
+		//writer := bufio.NewWriter(s)
+		//var rwc io.ReadWriteCloser = &ClosableBufio{*reader, *writer}
+		myListener.myRwc = s
 		//myListener.Accept)
 	})
 
@@ -60,4 +59,3 @@ func (l *ListenerP2P) Close() error {
 	log.Println("go-wrapper, listenerp2p.go, Close, 1")
 	return nil
 }
-*/
