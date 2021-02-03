@@ -7,8 +7,9 @@ package prnm
 
 import (
 	"context"
-	"crypto/rand"
+	"encoding/binary"
 	"fmt"
+	mrand "math/rand"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
@@ -29,6 +30,7 @@ import (
 	"perun.network/go-perun/log"
 	"perun.network/go-perun/pkg/sortedkv/leveldb"
 	"perun.network/go-perun/wallet"
+	"perun.network/go-perun/wire"
 	"perun.network/go-perun/wire/net"
 	"perun.network/go-perun/wire/net/simple"
 )
@@ -66,7 +68,7 @@ const (
 )
 
 // CreateClientHost connects to a specific relay.
-func CreateClientHost() host.Host {
+func CreateClientHost(addr wire.Address) host.Host {
 	log.Println("go-wrapper, client.go, CreateClientHost, 1")
 
 	// Parse Relay Peer ID
@@ -87,7 +89,8 @@ func CreateClientHost() host.Host {
 	}
 
 	// Creates a new random RSA key pair for this host.
-	r := rand.Reader
+	data := binary.BigEndian.Uint64(addr.Bytes())
+	r := mrand.New(mrand.NewSource(int64(data)))
 	prvKey, _, err := crypto.GenerateKeyPairWithReader(crypto.RSA, 2048, r)
 	if err != nil {
 		panic(err)
@@ -143,7 +146,7 @@ func NewClient(ctx *Context, cfg *Config, w *Wallet) (*Client, error) {
 	log.Println("go-wrapper, client.go, NewClient, 1")
 
 	// Verbinde mit Relay
-	CreateClientHost()
+	CreateClientHost(&cfg.Address.addr)
 
 	log.Println("go-wrapper, client.go, NewClient, 1.5")
 

@@ -4,10 +4,13 @@ package prnm
 
 import (
 	"context"
+	"encoding/binary"
+	mrand "math/rand"
 	"time"
 
+	"github.com/libp2p/go-libp2p-core/crypto"
 	host "github.com/libp2p/go-libp2p-core/host"
-	"github.com/libp2p/go-libp2p-core/peer"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 	swarm "github.com/libp2p/go-libp2p-swarm"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/pkg/errors"
@@ -35,9 +38,16 @@ func (d *DialerP2P) Dial(ctx context.Context, addr wire.Address) (wirenet.Conn, 
 	log.Println("go-wrapper, dialerp2p.go, Dial, Wire Addresses looks like ", addr.String())
 	log.Println("go-wrapper, dialerp2p.go, Dial, Wallet Key From Wire Addresses looks like ", wallet.Key(addr))
 
-	var AnotherClientID peer.ID = "" // TODO
+	// Generate Peer ID From Wire Address
+	data := binary.BigEndian.Uint64(addr.Bytes())
+	r := mrand.New(mrand.NewSource(int64(data)))
+	_, pubKey, err := crypto.GenerateKeyPairWithReader(crypto.RSA, 2048, r)
+	if err != nil {
+		panic(err)
+	}
+	anotherClientID, err := peer.IDFromPublicKey(pubKey)
 
-	fullAddr := serverAddr + "/p2p/" + serverID + "/p2p-circuit/p2p/" + AnotherClientID.Pretty()
+	fullAddr := serverAddr + "/p2p/" + serverID + "/p2p-circuit/p2p/" + anotherClientID.Pretty()
 	AnotherClientMA, err := ma.NewMultiaddr(fullAddr)
 	if err != nil {
 		panic(err)
@@ -45,9 +55,9 @@ func (d *DialerP2P) Dial(ctx context.Context, addr wire.Address) (wirenet.Conn, 
 
 	log.Println("go-wrapper, dialerp2p.go, Dial, 2")
 	//Redialing hacked
-	d.myHost.Network().(*swarm.Swarm).Backoff().Clear(AnotherClientID)
+	d.myHost.Network().(*swarm.Swarm).Backoff().Clear(anotherClientID)
 	anotherClientInfo := peer.AddrInfo{
-		ID:    AnotherClientID,
+		ID:    anotherClientID,
 		Addrs: []ma.Multiaddr{AnotherClientMA},
 	}
 	if err := d.myHost.Connect(context.Background(), anotherClientInfo); err != nil {
