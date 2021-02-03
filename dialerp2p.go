@@ -39,13 +39,17 @@ func (d *DialerP2P) Dial(ctx context.Context, addr wire.Address) (wirenet.Conn, 
 	log.Println("go-wrapper, dialerp2p.go, Dial, Wallet Key From Wire Addresses looks like ", wallet.Key(addr))
 
 	// Generate Peer ID From Wire Address
+
 	data := binary.BigEndian.Uint64(addr.Bytes())
 	r := mrand.New(mrand.NewSource(int64(data)))
 	_, pubKey, err := crypto.GenerateKeyPairWithReader(crypto.RSA, 2048, r)
 	if err != nil {
 		panic(err)
 	}
-	anotherClientID, err := peer.IDFromPublicKey(pubKey)
+	x, err := peer.IDFromPublicKey(pubKey)
+	log.Println("go-wrapper, dialerp2p.go, Dial, IDFromPublickey", x)
+
+	var anotherClientID peer.ID = "QmXsXytfCyaY3TNrKoUPDuJujYGgXv3DE2qMvXpvVLt5dt"
 
 	fullAddr := serverAddr + "/p2p/" + serverID + "/p2p-circuit/p2p/" + anotherClientID.Pretty()
 	AnotherClientMA, err := ma.NewMultiaddr(fullAddr)
