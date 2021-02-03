@@ -49,7 +49,7 @@ func (d *DialerP2P) Dial(ctx context.Context, addr wire.Address) (wirenet.Conn, 
 	x, err := peer.IDFromPublicKey(pubKey)
 	log.Println("go-wrapper, dialerp2p.go, Dial, IDFromPublickey", x)
 
-	var anotherClientID peer.ID = "QmXsXytfCyaY3TNrKoUPDuJujYGgXv3DE2qMvXpvVLt5dt"
+	var anotherClientID peer.ID = x
 
 	fullAddr := serverAddr + "/p2p/" + serverID + "/p2p-circuit/p2p/" + anotherClientID.Pretty()
 	AnotherClientMA, err := ma.NewMultiaddr(fullAddr)
