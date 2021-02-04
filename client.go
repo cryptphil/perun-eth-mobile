@@ -15,11 +15,13 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/perun-network/perun-eth-mobile/payment"
 	"github.com/pkg/errors"
 
 	ethchannel "perun.network/go-perun/backend/ethereum/channel"
 	ethwallet "perun.network/go-perun/backend/ethereum/wallet"
 	"perun.network/go-perun/backend/ethereum/wallet/keystore"
+	"perun.network/go-perun/channel"
 	"perun.network/go-perun/channel/persistence/keyvalue"
 	"perun.network/go-perun/client"
 	"perun.network/go-perun/log"
@@ -101,6 +103,9 @@ func NewClient(ctx *Context, cfg *Config, w *Wallet) (*Client, error) {
 		return nil, errors.WithMessage(err, "creating client")
 	}
 	go bus.Listen(listener)
+
+	app := &payment.App{}
+	channel.RegisterApp(app)
 
 	return &Client{cfg: cfg, ethClient: ethClient,
 		client:    c,

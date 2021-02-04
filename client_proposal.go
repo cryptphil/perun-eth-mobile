@@ -6,6 +6,7 @@
 package prnm
 
 import (
+	"github.com/perun-network/perun-eth-mobile/payment"
 	"github.com/pkg/errors"
 
 	ethwallet "perun.network/go-perun/backend/ethereum/wallet"
@@ -43,12 +44,16 @@ func (c *Client) ProposeChannel(
 		Assets:   []channel.Asset{(*ethwallet.Address)(&c.cfg.AssetHolder.addr)},
 		Balances: [][]channel.Bal{initialBals.values},
 	}
+	app := &payment.App{}
+	channel.RegisterApp(app)
+	initInvoice := payment.Invoice([32]byte{})
+
 	prop, err := client.NewLedgerChannelProposal(
 		uint64(challengeDuration),
 		c.wallet.NewAccount().Address(),
 		alloc,
 		[]wire.Address{c.onChain.Address(), (*ethwallet.Address)(&perunID.addr)},
-		client.WithoutApp())
+		client.WithApp(app, &initInvoice))
 	if err != nil {
 		return nil, err
 	}
@@ -147,11 +152,11 @@ func (r *ProposalResponder) Reject(ctx *Context, reason string) error {
 }
 
 func checkProp(prop client.LedgerChannelProposal) error {
-	switch {
-	case len(prop.InitBals.Assets) != 1:
+	if len(prop.InitBals.Assets) != 1 {
 		return errors.New("only single-asset channels are supported")
-	case !channel.IsNoApp(prop.App):
+	} else if _, ok := prop.App.(*payment.App); !ok {
 		return errors.New("only payment channels are supported")
+	} else {
+		return nil
 	}
-	return nil
 }
