@@ -22,6 +22,7 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/pkg/errors"
 
+	db2 "github.com/syndtr/goleveldb/leveldb"
 	ethchannel "perun.network/go-perun/backend/ethereum/channel"
 	ethwallet "perun.network/go-perun/backend/ethereum/wallet"
 	"perun.network/go-perun/backend/ethereum/wallet/keystore"
@@ -251,7 +252,7 @@ func (c *Client) EnablePersistence(dbPath string) (err error) {
 	log.Println("go-wrapper, client.go, EnablePersistence, 1")
 	var db *leveldb.Database
 
-	db, err = leveldb.LoadDatabase(dbPath)
+	db, err = LoadDatabase(dbPath)
 	log.Println("go-wrapper, client.go, EnablePersistence, 2")
 	if err != nil {
 		return errors.WithMessage(err, "creating/loading database")
@@ -262,6 +263,23 @@ func (c *Client) EnablePersistence(dbPath string) (err error) {
 	c.client.EnablePersistence(c.persister)
 	log.Println("go-wrapper, client.go, EnablePersistence, 5")
 	return nil
+}
+
+// LoadDatabase creates a new, empty Database.
+func LoadDatabase(path string) (*leveldb.Database, error) {
+	log.Println("go-wrapper, client.go, LoadDatabase, 1")
+	db, err := db2.OpenFile(path, nil)
+	log.Println("go-wrapper, client.go, LoadDatabase, 2")
+
+	if err != nil {
+		return nil, errors.Wrap(err, "Database.LoadDatabase(path) could not open/create file")
+	}
+
+	log.Println("go-wrapper, client.go, LoadDatabase, 3")
+	return &leveldb.Database{
+		db,
+		path: "asdf",
+	}, nil
 }
 
 // Restore restores all channels from persistence. Channels are restored in
