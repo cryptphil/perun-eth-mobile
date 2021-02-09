@@ -252,11 +252,15 @@ func (c *Client) EnablePersistence(dbPath string) (err error) {
 	var db *leveldb.Database
 
 	db, err = leveldb.LoadDatabase(dbPath)
+	log.Println("go-wrapper, client.go, EnablePersistence, 2")
 	if err != nil {
 		return errors.WithMessage(err, "creating/loading database")
 	}
+	log.Println("go-wrapper, client.go, EnablePersistence, 3")
 	c.persister = keyvalue.NewPersistRestorer(db)
+	log.Println("go-wrapper, client.go, EnablePersistence, 4")
 	c.client.EnablePersistence(c.persister)
+	log.Println("go-wrapper, client.go, EnablePersistence, 5")
 	return nil
 }
 
