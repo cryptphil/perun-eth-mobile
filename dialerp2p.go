@@ -88,7 +88,9 @@ func (d *DialerP2P) Dial(ctx context.Context, addr wire.Address) (wirenet.Conn, 
 // Close ..a
 func (d *DialerP2P) Close() error {
 	log.Println("go-wrapper, dialerp2p.go, Close, 1")
-	return nil
+
+	err := d.myHost.Close()
+	return err
 }
 
 // Register ..a

@@ -32,6 +32,7 @@ import (
 	"perun.network/go-perun/wallet"
 	"perun.network/go-perun/wire"
 	"perun.network/go-perun/wire/net"
+	"perun.network/go-perun/wire/net/simple"
 )
 
 type (
@@ -151,8 +152,8 @@ func NewClient(ctx *Context, cfg *Config, w *Wallet) (*Client, error) {
 	log.Println("go-wrapper, client.go, NewClient, 1.5")
 
 	endpoint := fmt.Sprintf("%s:%d", cfg.IP, cfg.Port)
-	//listener, err := simple.NewTCPListener(endpoint)
-	listener, err := NewTCPListenerP2P(host)
+	listener, err := simple.NewTCPListener(endpoint)
+	//listener, err := NewTCPListenerP2P(host)
 	if err != nil {
 		return nil, errors.WithMessagef(err, "listening on %s", endpoint)
 	}

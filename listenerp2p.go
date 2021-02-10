@@ -68,5 +68,6 @@ func (l *ListenerP2P) Accept() (wirenet.Conn, error) {
 // Close ..
 func (l *ListenerP2P) Close() error {
 	log.Println("go-wrapper, listenerp2p.go, Close, 1")
-	return nil
+	err := l.myHost.Close()
+	return err
 }
