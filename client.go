@@ -22,7 +22,6 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/pkg/errors"
 
-	db2 "github.com/syndtr/goleveldb/leveldb"
 	ethchannel "perun.network/go-perun/backend/ethereum/channel"
 	ethwallet "perun.network/go-perun/backend/ethereum/wallet"
 	"perun.network/go-perun/backend/ethereum/wallet/keystore"
@@ -63,8 +62,8 @@ type (
 )
 
 const (
-	serverID   = "QmPyRxsUQfAWR6uYYkSoZQsaM1pra2qpUHE3CMTgrfsTEV"
-	serverAddr = "/ip4/77.12.115.98/tcp/5574"
+	serverID   = "QmVCPfUMr98PaaM8qbAQBgJ9jqc7XHpGp7AsyragdFDmgm"
+	serverAddr = "/ip4/77.182.121.187/tcp/5574"
 )
 
 // CreateClientHost connects to a specific relay.
@@ -252,7 +251,8 @@ func (c *Client) EnablePersistence(dbPath string) (err error) {
 	log.Println("go-wrapper, client.go, EnablePersistence, 1")
 	var db *leveldb.Database
 
-	db, err = LoadDatabase(dbPath)
+	log.Println("go-wrapper, client.go, dbpath: ", dbPath)
+	db, err = leveldb.LoadDatabase(dbPath)
 	log.Println("go-wrapper, client.go, EnablePersistence, 2")
 	if err != nil {
 		return errors.WithMessage(err, "creating/loading database")
@@ -266,7 +266,7 @@ func (c *Client) EnablePersistence(dbPath string) (err error) {
 }
 
 // LoadDatabase creates a new, empty Database.
-func LoadDatabase(path string) (*leveldb.Database, error) {
+/*func LoadDatabase(path string) (*leveldb.Database, error) {
 	log.Println("go-wrapper, client.go, LoadDatabase, 1")
 	db, err := db2.OpenFile(path, nil)
 	log.Println("go-wrapper, client.go, LoadDatabase, 2")
@@ -280,7 +280,7 @@ func LoadDatabase(path string) (*leveldb.Database, error) {
 		db,
 		path: "asdf",
 	}, nil
-}
+}*/
 
 // Restore restores all channels from persistence. Channels are restored in
 // parallel. Newly restored channels should be acquired through the

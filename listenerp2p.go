@@ -6,6 +6,7 @@
 package prnm
 
 import (
+	"fmt"
 	"io"
 
 	host "github.com/libp2p/go-libp2p-core/host"
@@ -44,13 +45,23 @@ func NewTCPListenerP2P(host host.Host) (*ListenerP2P, error) {
 func (l *ListenerP2P) Accept() (wirenet.Conn, error) {
 	log.Println("go-wrapper, listenerp2p.go, Accept, 1")
 	var tmp io.ReadWriteCloser
-	for {
-		if l.myRwc != nil {
-			tmp = l.myRwc
-			l.myRwc = nil
-			break
-		}
+	/*for {
+	if l.myRwc != nil {
+		tmp = l.myRwc
+		l.myRwc = nil
+		break
+	}*/
+
+	if l.myRwc == nil {
+		return nil, fmt.Errorf("ListenerP2P Accept Failed")
 	}
+
+	if l.myRwc != nil {
+		tmp = l.myRwc
+		l.myRwc = nil
+	}
+
+	log.Println("go-wrapper, listenerp2p.go, Accept, 2")
 	return wirenet.NewIoConn(tmp), nil
 }
 
