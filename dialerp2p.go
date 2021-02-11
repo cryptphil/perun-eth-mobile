@@ -47,8 +47,9 @@ func (d *DialerP2P) Dial(ctx context.Context, addr wire.Address) (wirenet.Conn, 
 	if err != nil {
 		panic(err)
 	}
-	pubKey, err := crypto.UnmarshalECDSAPublicKey(data2)
-	
+	prvKey, err := crypto.UnmarshalECDSAPrivateKey(data2)
+	pubKey := prvKey.GetPublic()
+
 	/* Generate Peer ID From Wire Address
 	data := binary.BigEndian.Uint64(addr.Bytes())
 	r := mrand.New(mrand.NewSource(int64(data)))
