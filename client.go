@@ -66,7 +66,7 @@ type (
 
 const (
 	serverID   = "QmVCPfUMr98PaaM8qbAQBgJ9jqc7XHpGp7AsyragdFDmgm"
-	serverAddr = "/ip4/77.182.121.187/tcp/5574"
+	serverAddr = "/ip4/77.189.187.162/tcp/5574"
 )
 
 // CreateClientHost connects to a specific relay.
