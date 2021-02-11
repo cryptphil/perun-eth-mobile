@@ -8,6 +8,8 @@ package prnm
 import (
 	"context"
 	"encoding/binary"
+
+	//"encoding/hex"
 	"fmt"
 	mrand "math/rand"
 	"time"
@@ -88,7 +90,14 @@ func CreateClientHost(addr wire.Address) host.Host {
 		Addrs: addrs,
 	}
 
-	// Creates a new random RSA key pair for this host.
+	/* Create Peer ID from given ESCDA secret key.
+	sk := "0x6aeeb7f09e757baa9d3935a042c3d0d46a2eda19e9b676283dce4eaf32e29dc9"
+	data, err := hex.DecodeString(sk[2:])
+	if err != nil {
+		panic(err)
+	}
+	prvKey, err := crypto.UnmarshalECDSAPrivateKey(data) */
+	// Create Peer ID from given wire.address secret key.
 	data := binary.BigEndian.Uint64(addr.Bytes())
 	r := mrand.New(mrand.NewSource(int64(data)))
 	prvKey, _, err := crypto.GenerateKeyPairWithReader(crypto.RSA, 2048, r)
@@ -100,7 +109,7 @@ func CreateClientHost(addr wire.Address) host.Host {
 	// Construct a new libp2p client for our relay-server.
 	// Background()		-
 	// EnableRelay() 	-
-	// Identity(prvKey)	- Use a RSA private key to generate the ID of the host.
+	// Identity(prvKey)	- Use  private key to generate the ID of the host.
 	client, err := libp2p.New(
 		context.Background(),
 		libp2p.EnableRelay(),
