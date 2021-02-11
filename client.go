@@ -8,7 +8,6 @@ package prnm
 import (
 	"context"
 
-	"encoding/hex"
 	"fmt"
 	"math/big"
 	"time"
@@ -16,9 +15,10 @@ import (
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/libp2p/go-libp2p"
-	"github.com/libp2p/go-libp2p-core/crypto"
+	cry "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
@@ -93,12 +93,13 @@ func CreateClientHost(addr wire.Address) host.Host {
 	// Create Peer ID from given ESCDA secret key.
 	sk := "0x6aeeb7f09e757baa9d3935a042c3d0d46a2eda19e9b676283dce4eaf32e29dc9" // secret key of alice
 	//sk := "0x7d51a817ee07c3f28581c47a5072142193337fdca4d7911e58c5af2d03895d1a" // secret key of bob
-	data, err := hex.DecodeString(sk[2:] + sk[2:])
+	data, err := crypto.HexToECDSA(sk[2:])
 	if err != nil {
 		panic(err)
 	}
-	log.Println("go-wrapper, client.go, Private Key 1")
-	prvKey, err := crypto.UnmarshalEd25519PrivateKey(data)
+
+	//prvKey, err := cry.UnmarshalEd25519PrivateKey(data)
+	prvKey, err := cry.UnmarshalSecp256k1PrivateKey(data.X.Bytes())
 	if err != nil {
 		panic(err)
 	}
