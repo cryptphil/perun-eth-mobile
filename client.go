@@ -7,11 +7,9 @@ package prnm
 
 import (
 	"context"
-	"encoding/binary"
 
-	//"encoding/hex"
+	"encoding/hex"
 	"fmt"
-	mrand "math/rand"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
@@ -90,20 +88,20 @@ func CreateClientHost(addr wire.Address) host.Host {
 		Addrs: addrs,
 	}
 
-	/* Create Peer ID from given ESCDA secret key.
-	sk := "0x6aeeb7f09e757baa9d3935a042c3d0d46a2eda19e9b676283dce4eaf32e29dc9"
+	// Create Peer ID from given ESCDA secret key.
+	sk := "0x6aeeb7f09e757baa9d3935a042c3d0d46a2eda19e9b676283dce4eaf32e29dc9" // secret key of alice
 	data, err := hex.DecodeString(sk[2:])
 	if err != nil {
 		panic(err)
 	}
-	prvKey, err := crypto.UnmarshalECDSAPrivateKey(data) */
-	// Create Peer ID from given wire.address secret key.
+	prvKey, err := crypto.UnmarshalECDSAPrivateKey(data)
+	/* Create Peer ID from given wire.address secret key.
 	data := binary.BigEndian.Uint64(addr.Bytes())
 	r := mrand.New(mrand.NewSource(int64(data)))
 	prvKey, _, err := crypto.GenerateKeyPairWithReader(crypto.RSA, 2048, r)
 	if err != nil {
 		panic(err)
-	}
+	} */
 
 	log.Println("go-wrapper, client.go, CreateClientHost, 2")
 	// Construct a new libp2p client for our relay-server.

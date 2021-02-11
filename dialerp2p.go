@@ -4,8 +4,10 @@ package prnm
 
 import (
 	"context"
-	"encoding/binary"
-	mrand "math/rand"
+	"encoding/hex"
+
+	//"encoding/binary"
+	//mrand "math/rand"
 	"time"
 
 	"github.com/libp2p/go-libp2p-core/crypto"
@@ -18,6 +20,7 @@ import (
 	"perun.network/go-perun/log"
 	"perun.network/go-perun/wallet"
 	"perun.network/go-perun/wire"
+
 	wirenet "perun.network/go-perun/wire/net"
 )
 
@@ -38,14 +41,21 @@ func (d *DialerP2P) Dial(ctx context.Context, addr wire.Address) (wirenet.Conn, 
 	log.Println("go-wrapper, dialerp2p.go, Dial, Wire Addresses looks like ", addr.String())
 	log.Println("go-wrapper, dialerp2p.go, Dial, Wallet Key From Wire Addresses looks like ", wallet.Key(addr))
 
-	// Generate Peer ID From Wire Address
-
+	// Generate Peer ID from secret key of bob
+	sk := "0x7d51a817ee07c3f28581c47a5072142193337fdca4d7911e58c5af2d03895d1a" // secret key of bob
+	data2, err := hex.DecodeString(sk[2:])
+	if err != nil {
+		panic(err)
+	}
+	pubKey, err := crypto.UnmarshalECDSAPublicKey(data2)
+	
+	/* Generate Peer ID From Wire Address
 	data := binary.BigEndian.Uint64(addr.Bytes())
 	r := mrand.New(mrand.NewSource(int64(data)))
 	_, pubKey, err := crypto.GenerateKeyPairWithReader(crypto.RSA, 2048, r)
 	if err != nil {
 		panic(err)
-	}
+	} */
 	x, err := peer.IDFromPublicKey(pubKey)
 	log.Println("go-wrapper, dialerp2p.go, Dial, IDFromPublickey", x)
 
