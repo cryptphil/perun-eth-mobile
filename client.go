@@ -92,11 +92,18 @@ func CreateClientHost(addr wire.Address) host.Host {
 
 	// Create Peer ID from given ESCDA secret key.
 	sk := "0x6aeeb7f09e757baa9d3935a042c3d0d46a2eda19e9b676283dce4eaf32e29dc9" // secret key of alice
-	data, err := hex.DecodeString(sk[2:])
+	//sk := "0x7d51a817ee07c3f28581c47a5072142193337fdca4d7911e58c5af2d03895d1a" // secret key of bob
+	data, err := hex.DecodeString(sk[2:] + sk[2:])
 	if err != nil {
 		panic(err)
 	}
-	prvKey, err := crypto.UnmarshalECDSAPrivateKey(data)
+	log.Println("go-wrapper, client.go, Private Key 1")
+	prvKey, err := crypto.UnmarshalEd25519PrivateKey(data)
+	if err != nil {
+		panic(err)
+	}
+	log.Println("go-wrapper, client.go, Private Key 2")
+
 	/* Create Peer ID from given wire.address secret key.
 	data := binary.BigEndian.Uint64(addr.Bytes())
 	r := mrand.New(mrand.NewSource(int64(data)))
