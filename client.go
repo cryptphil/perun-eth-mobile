@@ -54,6 +54,8 @@ type (
 		//dialer *simple.Dialer
 		dialer *DialerP2P
 		bus    *net.Bus
+
+		peerID string // used in libp2p
 	}
 
 	// NewChannelCallback wraps a `func(*PaymentChannel)`
@@ -215,7 +217,8 @@ func NewClient(ctx *Context, cfg *Config, w *Wallet) (*Client, error) {
 		wallet:    w.w,
 		onChain:   acc,
 		dialer:    dialer,
-		bus:       bus}, nil
+		bus:       bus,
+		peerID:    host.ID().Pretty()}, nil
 }
 
 // Close closes the client and its PersistRestorer to synchronize the database.
