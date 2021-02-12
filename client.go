@@ -218,7 +218,7 @@ func NewClient(ctx *Context, cfg *Config, w *Wallet) (*Client, error) {
 		onChain:   acc,
 		dialer:    dialer,
 		bus:       bus,
-		peerID:    host.ID().Pretty()}, nil
+		PeerID:    host.ID().Pretty()}, nil
 }
 
 // Close closes the client and its PersistRestorer to synchronize the database.
