@@ -55,7 +55,7 @@ type (
 		dialer *DialerP2P
 		bus    *net.Bus
 
-		peerID string // used in libp2p
+		PeerID string // used in libp2p
 	}
 
 	// NewChannelCallback wraps a `func(*PaymentChannel)`
