@@ -142,8 +142,11 @@ func (r *ProposalResponder) Accept(ctx *Context) (*PaymentChannel, error) {
 	log.Println("go-wrapper, client_proposal.go, Accept, 1")
 	// Generate new account as channel participant.
 	account := r.c.wallet.NewAccount().Address()
+	log.Println("go-wrapper, client_proposal.go, Accept, 2")
 	acceptor := r.p.Accept(account, client.WithRandomNonce())
+	log.Println("go-wrapper, client_proposal.go, Accept, 3")
 	ch, err := r.r.Accept(ctx.ctx, acceptor)
+	log.Println("go-wrapper, client_proposal.go, Accept, 4")
 	return &PaymentChannel{ch}, err
 }
 
