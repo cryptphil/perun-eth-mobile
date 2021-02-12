@@ -42,8 +42,8 @@ func (d *DialerP2P) Dial(ctx context.Context, addr wire.Address) (wirenet.Conn, 
 	log.Println("go-wrapper, dialerp2p.go, Dial, Wallet Key From Wire Addresses looks like ", wallet.Key(addr))
 
 	// Generate Peer ID from secret key of bob
-	//sk := "0x6aeeb7f09e757baa9d3935a042c3d0d46a2eda19e9b676283dce4eaf32e29dc9" // secret key of alice
-	sk := "0x7d51a817ee07c3f28581c47a5072142193337fdca4d7911e58c5af2d03895d1a" // secret key of bob
+	sk := "0x6aeeb7f09e757baa9d3935a042c3d0d46a2eda19e9b676283dce4eaf32e29dc9" // secret key of alice
+	//sk := "0x7d51a817ee07c3f28581c47a5072142193337fdca4d7911e58c5af2d03895d1a" // secret key of bob
 
 	data2, err := crypto.HexToECDSA(sk[2:])
 	if err != nil {

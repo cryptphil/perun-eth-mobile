@@ -144,6 +144,7 @@ func (r *ProposalResponder) Accept(ctx *Context) (*PaymentChannel, error) {
 	account := r.c.wallet.NewAccount().Address()
 	acceptor := r.p.Accept(account, client.WithRandomNonce())
 	ch, err := r.r.Accept(ctx.ctx, acceptor)
+	log.Println("go-wrapper, client_proposal.go, Accept, 2")
 	return &PaymentChannel{ch}, err
 }
 
