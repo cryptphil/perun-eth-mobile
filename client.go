@@ -70,7 +70,8 @@ const (
 	serverAddr = "/ip4/77.182.37.227/tcp/5574"
 )
 
-func (c *Client) getPeerID() string {
+// GetPeerID getted the peer id of the client.
+func (c *Client) GetPeerID() string {
 	return c.PeerID
 }
 
