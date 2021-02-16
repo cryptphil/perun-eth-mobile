@@ -70,8 +70,8 @@ const (
 	serverAddr = "/ip4/77.182.37.227/tcp/5574"
 )
 
-// GetPeerID getted the peer id of the client.
-func (c *Client) GetPeerID() string {
+// GetLibP2PID getted the peer id of the client.
+func (c *Client) GetLibP2PID() string {
 	return c.PeerID
 }
 
@@ -222,7 +222,7 @@ func NewClient(ctx *Context, cfg *Config, w *Wallet) (*Client, error) {
 		wallet:    w.w,
 		onChain:   acc,
 		dialer:    dialer,
-		bus:       bus,
+		Bus:       bus,
 		PeerID:    host.ID().Pretty()}, nil
 }
 
@@ -234,7 +234,7 @@ func (c *Client) Close() error {
 	if err := c.client.Close(); err != nil {
 		return errors.WithMessage(err, "closing client")
 	}
-	if err := c.bus.Close(); err != nil {
+	if err := c.Bus.Close(); err != nil {
 		return errors.WithMessage(err, "closing bus")
 	}
 	if c.persister != nil {
