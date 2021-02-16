@@ -53,7 +53,7 @@ type (
 
 		//dialer *simple.Dialer
 		dialer *DialerP2P
-		bus    *net.Bus
+		Bus    *net.Bus
 
 		PeerID string // used in libp2p
 	}
@@ -69,6 +69,10 @@ const (
 	serverID   = "QmPyRxsUQfAWR6uYYkSoZQsaM1pra2qpUHE3CMTgrfsTEV"
 	serverAddr = "/ip4/77.182.37.227/tcp/5574"
 )
+
+func (c *Client) getPeerID() string {
+	return c.PeerID
+}
 
 // CreateClientHost connects to a specific relay.
 func CreateClientHost(addr wire.Address) host.Host {
