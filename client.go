@@ -32,7 +32,6 @@ import (
 	"perun.network/go-perun/log"
 	"perun.network/go-perun/pkg/sortedkv/leveldb"
 	"perun.network/go-perun/wallet"
-	"perun.network/go-perun/wire"
 	"perun.network/go-perun/wire/net"
 )
 
@@ -67,7 +66,7 @@ type (
 
 const (
 	serverID   = "QmPyRxsUQfAWR6uYYkSoZQsaM1pra2qpUHE3CMTgrfsTEV"
-	serverAddr = "/ip4/77.182.37.227/tcp/5574"
+	serverAddr = "/ip4/77.190.27.9/tcp/5574"
 )
 
 // GetLibP2PID getted the peer id of the client.
@@ -76,7 +75,7 @@ func (c *Client) GetLibP2PID() string {
 }
 
 // CreateClientHost connects to a specific relay.
-func CreateClientHost(addr wire.Address) host.Host {
+func CreateClientHost(sk string) host.Host {
 	log.Println("go-wrapper, client.go, CreateClientHost, 1")
 
 	// Parse Relay Peer ID
@@ -98,26 +97,15 @@ func CreateClientHost(addr wire.Address) host.Host {
 
 	// Create Peer ID from given ESCDA secret key.
 	//sk := "0x6aeeb7f09e757baa9d3935a042c3d0d46a2eda19e9b676283dce4eaf32e29dc9" // secret key of alice
-	sk := "0x7d51a817ee07c3f28581c47a5072142193337fdca4d7911e58c5af2d03895d1a" // secret key of bob
+	// sk := "0x7d51a817ee07c3f28581c47a5072142193337fdca4d7911e58c5af2d03895d1a" // secret key of bob
 	data, err := crypto.HexToECDSA(sk[2:])
 	if err != nil {
 		panic(err)
 	}
-
-	//prvKey, err := cry.UnmarshalEd25519PrivateKey(data)
 	prvKey, err := cry.UnmarshalSecp256k1PrivateKey(data.X.Bytes())
 	if err != nil {
 		panic(err)
 	}
-	log.Println("go-wrapper, client.go, Private Key 2")
-
-	/* Create Peer ID from given wire.address secret key.
-	data := binary.BigEndian.Uint64(addr.Bytes())
-	r := mrand.New(mrand.NewSource(int64(data)))
-	prvKey, _, err := crypto.GenerateKeyPairWithReader(crypto.RSA, 2048, r)
-	if err != nil {
-		panic(err)
-	} */
 
 	log.Println("go-wrapper, client.go, CreateClientHost, 2")
 	// Construct a new libp2p client for our relay-server.
@@ -143,8 +131,6 @@ func CreateClientHost(addr wire.Address) host.Host {
 	fmt.Println(".... Successful!")
 
 	log.Println("go-wrapper, client.go, CreateClientHost, 4")
-	// Setup protocol handler
-	//client.SetStreamHandler("/client", handleStream)
 
 	// Build own full address
 	fullAddr := relayInfo.Addrs[0].String() + "/p2p/" + relayInfo.ID.Pretty() + "/p2p-circuit/p2p/" + client.ID().Pretty()
@@ -166,11 +152,11 @@ func CreateClientHost(addr wire.Address) host.Host {
 //    not nil.
 //  - sets the `cfg`s Adjudicator and AssetHolder to the deployed contracts
 //    addresses in case they were deployed.
-func NewClient(ctx *Context, cfg *Config, w *Wallet) (*Client, error) {
+func NewClient(ctx *Context, cfg *Config, w *Wallet, secretKey string) (*Client, error) {
 	log.Println("go-wrapper, client.go, NewClient, 1")
 
 	// Verbinde mit Relay
-	host := CreateClientHost(&cfg.Address.addr)
+	host := CreateClientHost(secretKey)
 
 	log.Println("go-wrapper, client.go, NewClient, 1.5")
 
