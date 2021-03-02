@@ -278,23 +278,6 @@ func (c *Client) EnablePersistence(dbPath string) (err error) {
 	return nil
 }
 
-// LoadDatabase creates a new, empty Database.
-/*func LoadDatabase(path string) (*leveldb.Database, error) {
-	log.Println("go-wrapper, client.go, LoadDatabase, 1")
-	db, err := db2.OpenFile(path, nil)
-	log.Println("go-wrapper, client.go, LoadDatabase, 2")
-
-	if err != nil {
-		return nil, errors.Wrap(err, "Database.LoadDatabase(path) could not open/create file")
-	}
-
-	log.Println("go-wrapper, client.go, LoadDatabase, 3")
-	return &leveldb.Database{
-		db,
-		path: "asdf",
-	}, nil
-}*/
-
 // Restore restores all channels from persistence. Channels are restored in
 // parallel. Newly restored channels should be acquired through the
 // OnNewChannel callback.
@@ -312,9 +295,9 @@ func (c *Client) Restore(ctx *Context) error {
 // AddPeer adds a new peer to the client. Must be called before proposing
 // a new channel with said peer. Wraps go-perun/peer/net/Dialer.Register.
 // ref https://pkg.go.dev/perun.network/go-perun/peer/net?tab=doc#Dialer.Register
-func (c *Client) AddPeer(perunID *Address, host string, port int) {
+func (c *Client) AddPeer(perunID *Address, peerID string) {
 	log.Println("go-wrapper, client.go, AddPeer, 1")
-	c.dialer.Register((*ethwallet.Address)(&perunID.addr), fmt.Sprintf("%s:%d", host, port))
+	c.dialer.Register((*ethwallet.Address)(&perunID.addr), peerID) // instead of fmt.Sprintf("%s:%d", host, port)
 }
 
 // setupContracts checks which contracts of the `cfg` are nil and deploys them

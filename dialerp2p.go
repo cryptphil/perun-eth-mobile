@@ -4,13 +4,9 @@ package prnm
 
 import (
 	"context"
-
-	//"encoding/binary"
-	//mrand "math/rand"
+	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/crypto"
-	cry "github.com/libp2p/go-libp2p-core/crypto"
 	host "github.com/libp2p/go-libp2p-core/host"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	swarm "github.com/libp2p/go-libp2p-swarm"
@@ -27,6 +23,9 @@ import (
 // DialerP2P ...l
 type DialerP2P struct {
 	myHost host.Host
+
+	mutex sync.RWMutex
+	peers map[wallet.AddrKey]string
 }
 
 // NewTCPDialerP2P ...a
@@ -35,39 +34,41 @@ func NewTCPDialerP2P(defaultTimeout time.Duration, host host.Host) *DialerP2P {
 	return &DialerP2P{myHost: host}
 }
 
-// Dial ...
+func (d *DialerP2P) get(key wallet.AddrKey) (string, bool) {
+	d.mutex.RLock()
+	defer d.mutex.RUnlock()
+
+	peerID, ok := d.peers[key]
+	return peerID, ok
+}
+
+// Dial implements Dialer.Dial().
 func (d *DialerP2P) Dial(ctx context.Context, addr wire.Address) (wirenet.Conn, error) {
 	log.Println("go-wrapper, dialerp2p.go, Dial, 1")
-	log.Println("go-wrapper, dialerp2p.go, Dial, Wire Addresses looks like ", addr.String())
-	log.Println("go-wrapper, dialerp2p.go, Dial, Wallet Key From Wire Addresses looks like ", wallet.Key(addr))
 
-	// Generate Peer ID from secret key of bob
+	peerID, ok := d.get(wallet.Key(addr))
+	if !ok {
+		return nil, errors.New("peer not found")
+	}
+	log.Println("go-wrapper, dialerp2p.go, Dial, 1.5")
+
+	/* Generate Peer ID from secret key of alice
 	sk := "0x6aeeb7f09e757baa9d3935a042c3d0d46a2eda19e9b676283dce4eaf32e29dc9" // secret key of alice
-	//sk := "0x7d51a817ee07c3f28581c47a5072142193337fdca4d7911e58c5af2d03895d1a" // secret key of bob
-
-	data2, err := crypto.HexToECDSA(sk[2:])
+	data, err := crypto.HexToECDSA(sk[2:])
 	if err != nil {
 		panic(err)
 	}
-
-	prvKey, err := cry.UnmarshalSecp256k1PrivateKey(data2.X.Bytes())
+	prvKey, err := cry.UnmarshalSecp256k1PrivateKey(data.X.Bytes())
 	if err != nil {
 		panic(err)
 	}
-
 	pubKey := prvKey.GetPublic()
+	anotherClientID, err := peer.IDFromPublicKey(pubKey) */
 
-	/* Generate Peer ID From Wire Address
-	data := binary.BigEndian.Uint64(addr.Bytes())
-	r := mrand.New(mrand.NewSource(int64(data)))
-	_, pubKey, err := crypto.GenerateKeyPairWithReader(crypto.RSA, 2048, r)
+	anotherClientID, err := peer.Decode(peerID)
 	if err != nil {
-		panic(err)
-	} */
-	x, err := peer.IDFromPublicKey(pubKey)
-	log.Println("go-wrapper, dialerp2p.go, Dial, IDFromPublickey", x)
-
-	var anotherClientID peer.ID = x
+		return nil, errors.New("peer id is not valid")
+	}
 
 	fullAddr := serverAddr + "/p2p/" + serverID + "/p2p-circuit/p2p/" + anotherClientID.Pretty()
 	AnotherClientMA, err := ma.NewMultiaddr(fullAddr)
@@ -90,14 +91,9 @@ func (d *DialerP2P) Dial(ctx context.Context, addr wire.Address) (wirenet.Conn, 
 	//Connecting
 	s, err := d.myHost.NewStream(context.Background(), anotherClientInfo.ID, "/client")
 	if err != nil {
-		return nil, errors.Wrap(err, "Not working")
+		return nil, errors.Wrap(err, "failed to dial peer")
 	}
 	log.Println("go-wrapper, dialerp2p.go, Dial, Connected to another Client!")
-
-	//reader := bufio.NewReader(s)
-	//writer := bufio.NewWriter(s)
-	//rw := bufio.NewReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
-	//var rwc io.ReadWriteCloser = &ClosableBufio{*reader, *writer}
 
 	log.Println("go-wrapper, dialerp2p.go, Dial, 4")
 	return wirenet.NewIoConn(s), nil
@@ -111,10 +107,12 @@ func (d *DialerP2P) Close() error {
 	return err
 }
 
-// Register ..a
-func (d *DialerP2P) Register(addr wire.Address, address string) {
+// Register registers a libp2p peer id for a peer address.
+func (d *DialerP2P) Register(addr wire.Address, peerID string) {
 	log.Println("go-wrapper, dialerp2p.go, Register, 1")
-	log.Println("go-wrapper, dialerp2p.go, Register, Wire Addresses looks like ", addr.String())
-	log.Println("go-wrapper, dialerp2p.go, Register, Wallet Key From Wire Addresses looks like ", wallet.Key(addr))
-	log.Println("go-wrapper, dialerp2p.go, Register, only address", address)
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	d.peers[wallet.Key(addr)] = peerID
+	log.Println("go-wrapper, dialerp2p.go, Register, 2")
 }
