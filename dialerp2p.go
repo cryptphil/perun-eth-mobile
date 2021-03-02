@@ -31,7 +31,10 @@ type DialerP2P struct {
 // NewTCPDialerP2P ...a
 func NewTCPDialerP2P(defaultTimeout time.Duration, host host.Host) *DialerP2P {
 	log.Println("go-wrapper, dialerp2p.go, NewTCPDialerP2P, 1")
-	return &DialerP2P{myHost: host}
+	return &DialerP2P{
+		myHost: host,
+		peers:  make(map[wallet.AddrKey]string),
+	}
 }
 
 func (d *DialerP2P) get(key wallet.AddrKey) (string, bool) {
