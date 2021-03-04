@@ -35,6 +35,12 @@ import (
 	"perun.network/go-perun/wire/net"
 )
 
+// constants of the relay server
+const (
+	serverID   = "QmPyRxsUQfAWR6uYYkSoZQsaM1pra2qpUHE3CMTgrfsTEV"
+	serverAddr = "/ip4/77.185.165.162/tcp/5574"
+)
+
 type (
 	// Client is a state channel client. It is the central controller to interact
 	// with a state channel network. It can be used to propose channels to other
@@ -54,7 +60,7 @@ type (
 		dialer *DialerP2P
 		Bus    *net.Bus
 
-		PeerID string // used in libp2p
+		PeerID string // libp2p peer id
 	}
 
 	// NewChannelCallback wraps a `func(*PaymentChannel)`
@@ -64,20 +70,74 @@ type (
 	}
 )
 
-const (
-	serverID   = "QmPyRxsUQfAWR6uYYkSoZQsaM1pra2qpUHE3CMTgrfsTEV"
-	serverAddr = "/ip4/77.190.27.9/tcp/5574"
-)
-
-// GetLibP2PID getted the peer id of the client.
+// GetLibP2PID returns the peer id of the client.
 func (c *Client) GetLibP2PID() string {
 	return c.PeerID
 }
 
-// CreateClientHost connects to a specific relay.
-func CreateClientHost(sk string) host.Host {
-	log.Println("go-wrapper, client.go, CreateClientHost, 1")
+// NewClient sets up a new Client with configuration `cfg`.
+// The Client:
+//  - imports the keystore and unlocks the account
+//  - creates a libp2p host connecting to the relay-server
+//  - connects to the eth node
+//  - in case either the Adjudicator and AssetHolder of the `cfg` are nil, it
+//    deploys needed contract. There is currently no check that the
+//    correct bytecode is deployed to the given addresses if they are
+//    not nil.
+//  - sets the `cfg`s Adjudicator and AssetHolder to the deployed contracts
+//    addresses in case they were deployed.
+func NewClient(ctx *Context, cfg *Config, w *Wallet, secretKey string) (*Client, error) {
+	host := CreateClientHost(secretKey) // creates a libp2p host connecting to the relay-server
 
+	endpoint := fmt.Sprintf("%s:%d", cfg.IP, cfg.Port)
+	//listener, err := simple.NewTCPListener(endpoint)
+	listener, err := NewTCPListenerP2P(host) // creates a libp2p listener
+	if err != nil {
+		return nil, errors.WithMessagef(err, "listening on %s", endpoint)
+	}
+	//dialer := simple.NewTCPDialer(time.Second * 15)
+	dialer := NewTCPDialerP2P(time.Second*15, host) // creates a libp2p dialer
+	ethClient, err := ethclient.Dial(cfg.ETHNodeURL)
+	if err != nil {
+		return nil, errors.WithMessage(err, "connecting to ethereum node")
+	}
+
+	acc, err := w.unlock(*cfg.Address)
+	if err != nil {
+		return nil, errors.WithMessage(err, "finding account")
+	}
+
+	signer := types.NewEIP155Signer(big.NewInt(1337))
+	cb := ethchannel.NewContractBackend(ethClient, keystore.NewTransactor(*w.w, signer))
+	if err := setupContracts(ctx.ctx, cb, acc.Account, cfg); err != nil {
+		return nil, errors.WithMessage(err, "setting up contracts")
+	}
+
+	bus := net.NewBus(acc, dialer)
+	adjudicator := ethchannel.NewAdjudicator(cb, common.Address(cfg.Adjudicator.addr), acc.Account.Address, acc.Account)
+	accs := map[ethchannel.Asset]accounts.Account{cfg.AssetHolder.addr: acc.Account}
+	depositor := new(ethchannel.ETHDepositor)
+	deps := map[ethchannel.Asset]ethchannel.Depositor{cfg.AssetHolder.addr: depositor}
+
+	funder := ethchannel.NewFunder(cb, accs, deps)
+	c, err := client.New(acc.Address(), bus, funder, adjudicator, w.w)
+	if err != nil {
+		return nil, errors.WithMessage(err, "creating client")
+	}
+	go bus.Listen(listener)
+
+	return &Client{cfg: cfg, ethClient: ethClient,
+		client:    c,
+		persister: nil,
+		wallet:    w.w,
+		onChain:   acc,
+		dialer:    dialer,
+		Bus:       bus,
+		PeerID:    host.ID().Pretty()}, nil
+}
+
+// CreateClientHost creates a libp2p host connecting to a relay-server.
+func CreateClientHost(sk string) host.Host {
 	// Parse Relay Peer ID
 	id, err := peer.Decode(serverID)
 	if err != nil {
@@ -95,9 +155,7 @@ func CreateClientHost(sk string) host.Host {
 		Addrs: addrs,
 	}
 
-	// Create Peer ID from given ESCDA secret key.
-	//sk := "0x6aeeb7f09e757baa9d3935a042c3d0d46a2eda19e9b676283dce4eaf32e29dc9" // secret key of alice
-	// sk := "0x7d51a817ee07c3f28581c47a5072142193337fdca4d7911e58c5af2d03895d1a" // secret key of bob
+	// Create private key from given ESCDA secret key.
 	data, err := crypto.HexToECDSA(sk[2:])
 	if err != nil {
 		panic(err)
@@ -107,11 +165,8 @@ func CreateClientHost(sk string) host.Host {
 		panic(err)
 	}
 
-	log.Println("go-wrapper, client.go, CreateClientHost, 2")
 	// Construct a new libp2p client for our relay-server.
-	// Background()		-
-	// EnableRelay() 	-
-	// Identity(prvKey)	- Use  private key to generate the ID of the host.
+	// Identity(prvKey)	- Use a private key to generate the ID of the host.
 	client, err := libp2p.New(
 		context.Background(),
 		libp2p.EnableRelay(),
@@ -120,103 +175,18 @@ func CreateClientHost(sk string) host.Host {
 	if err != nil {
 		panic(err)
 	}
-	log.Println("go-wrapper, client.go, ClientID: ", client.ID())
 
-	log.Println("go-wrapper, client.go, CreateClientHost, 3")
 	// Connect to relay server
-	fmt.Println("Connecting to Relay...")
 	if err := client.Connect(context.Background(), relayInfo); err != nil {
 		panic(err)
 	}
-	fmt.Println(".... Successful!")
-
-	log.Println("go-wrapper, client.go, CreateClientHost, 4")
-
-	// Build own full address
-	fullAddr := relayInfo.Addrs[0].String() + "/p2p/" + relayInfo.ID.Pretty() + "/p2p-circuit/p2p/" + client.ID().Pretty()
-
-	log.Println("go-wrapper, client.go, CreateClientHost, My Peer ID: ", client.ID().Pretty())
-	log.Println("go-wrapper, client.go, CreateClientHost, My Address: ", fullAddr)
-
 	return client
-}
-
-// NewClient sets up a new Client with configuration `cfg`.
-// The Client:
-//  - imports the keystore and unlocks the account
-//  - listens on IP:port
-//  - connects to the eth node
-//  - in case either the Adjudicator and AssetHolder of the `cfg` are nil, it
-//    deploys needed contract. There is currently no check that the
-//    correct bytecode is deployed to the given addresses if they are
-//    not nil.
-//  - sets the `cfg`s Adjudicator and AssetHolder to the deployed contracts
-//    addresses in case they were deployed.
-func NewClient(ctx *Context, cfg *Config, w *Wallet, secretKey string) (*Client, error) {
-	log.Println("go-wrapper, client.go, NewClient, 1")
-
-	// Verbinde mit Relay
-	host := CreateClientHost(secretKey)
-
-	log.Println("go-wrapper, client.go, NewClient, 1.5")
-
-	endpoint := fmt.Sprintf("%s:%d", cfg.IP, cfg.Port)
-	//listener, err := simple.NewTCPListener(endpoint)
-	listener, err := NewTCPListenerP2P(host)
-	if err != nil {
-		return nil, errors.WithMessagef(err, "listening on %s", endpoint)
-	}
-	log.Println("go-wrapper, client.go, NewClient, 2")
-	//dialer := simple.NewTCPDialer(time.Second * 15)
-	dialer := NewTCPDialerP2P(time.Second*15, host)
-	ethClient, err := ethclient.Dial(cfg.ETHNodeURL)
-	if err != nil {
-		return nil, errors.WithMessage(err, "connecting to ethereum node")
-	}
-	log.Println("go-wrapper, client.go, NewClient, 3")
-
-	acc, err := w.unlock(*cfg.Address)
-	if err != nil {
-		return nil, errors.WithMessage(err, "finding account")
-	}
-
-	signer := types.NewEIP155Signer(big.NewInt(1337))
-	cb := ethchannel.NewContractBackend(ethClient, keystore.NewTransactor(*w.w, signer))
-	if err := setupContracts(ctx.ctx, cb, acc.Account, cfg); err != nil {
-		return nil, errors.WithMessage(err, "setting up contracts")
-	}
-	log.Println("go-wrapper, client.go, NewClient,  4")
-
-	bus := net.NewBus(acc, dialer)
-	adjudicator := ethchannel.NewAdjudicator(cb, common.Address(cfg.Adjudicator.addr), acc.Account.Address, acc.Account)
-	accs := map[ethchannel.Asset]accounts.Account{cfg.AssetHolder.addr: acc.Account}
-	depositor := new(ethchannel.ETHDepositor)
-	deps := map[ethchannel.Asset]ethchannel.Depositor{cfg.AssetHolder.addr: depositor}
-	log.Println("go-wrapper, client.go, NewClient, 5")
-
-	funder := ethchannel.NewFunder(cb, accs, deps)
-	c, err := client.New(acc.Address(), bus, funder, adjudicator, w.w)
-	if err != nil {
-		return nil, errors.WithMessage(err, "creating client")
-	}
-	go bus.Listen(listener)
-	log.Println("go-wrapper, client.go, NewClient, 6")
-
-	return &Client{cfg: cfg, ethClient: ethClient,
-		client:    c,
-		persister: nil,
-		wallet:    w.w,
-		onChain:   acc,
-		dialer:    dialer,
-		Bus:       bus,
-		PeerID:    host.ID().Pretty()}, nil
 }
 
 // Close closes the client and its PersistRestorer to synchronize the database.
 // ref https://pkg.go.dev/perun.network/go-perun/client?tab=doc#Channel.Close
 // ref https://pkg.go.dev/perun.network/go-perun/channel/persistence/keyvalue?tab=doc#PersistRestorer.Close
 func (c *Client) Close() error {
-	log.Println("go-wrapper, client.go, Close, Beginn")
 	if err := c.client.Close(); err != nil {
 		return errors.WithMessage(err, "closing client")
 	}
@@ -226,7 +196,6 @@ func (c *Client) Close() error {
 	if c.persister != nil {
 		return errors.WithMessage(c.persister.Close(), "closing persister")
 	}
-	log.Println("go-wrapper, client.go, Close, Ende")
 	return nil
 }
 
@@ -235,9 +204,7 @@ func (c *Client) Close() error {
 // Incoming proposals and updates are forwarded to the passed handlers.
 // ref https://pkg.go.dev/perun.network/go-perun/client?tab=doc#Client.Handle
 func (c *Client) Handle(ph ProposalHandler, uh UpdateHandler) {
-	log.Println("go-wrapper, client.go, Handle, Beginn")
 	c.client.Handle(&proposalHandler{c: c, h: ph}, &updateHandler{h: uh})
-	log.Println("go-wrapper, client.go, Handle, Ende")
 }
 
 // OnNewChannel sets a handler to be called whenever a new channel is created
@@ -247,11 +214,9 @@ func (c *Client) Handle(ph ProposalHandler, uh UpdateHandler) {
 // Start the watcher routine here, if needed.
 // ref https://pkg.go.dev/perun.network/go-perun/client?tab=doc#Client.OnNewChannel
 func (c *Client) OnNewChannel(callback NewChannelCallback) {
-	log.Println("go-wrapper, client.go, OnNewChannel, Beginn")
 	c.client.OnNewChannel(func(ch *client.Channel) {
 		callback.OnNew(&PaymentChannel{ch})
 	})
-	log.Println("go-wrapper, client.go, OnNewChannel, Ende")
 }
 
 // EnablePersistence loads or creates a levelDB database at the given `dbPath`
@@ -261,20 +226,14 @@ func (c *Client) OnNewChannel(callback NewChannelCallback) {
 // This function is not thread safe.
 // ref https://pkg.go.dev/perun.network/go-perun/client?tab=doc#Client.EnablePersistence
 func (c *Client) EnablePersistence(dbPath string) (err error) {
-	log.Println("go-wrapper, client.go, EnablePersistence, 1")
 	var db *leveldb.Database
 
-	log.Println("go-wrapper, client.go, dbpath: ", dbPath)
 	db, err = leveldb.LoadDatabase(dbPath)
-	log.Println("go-wrapper, client.go, EnablePersistence, 2")
 	if err != nil {
 		return errors.WithMessage(err, "creating/loading database")
 	}
-	log.Println("go-wrapper, client.go, EnablePersistence, 3")
 	c.persister = keyvalue.NewPersistRestorer(db)
-	log.Println("go-wrapper, client.go, EnablePersistence, 4")
 	c.client.EnablePersistence(c.persister)
-	log.Println("go-wrapper, client.go, EnablePersistence, 5")
 	return nil
 }
 
@@ -285,7 +244,6 @@ func (c *Client) EnablePersistence(dbPath string) (err error) {
 // enough time in the passed context.
 // ref https://pkg.go.dev/perun.network/go-perun/client?tab=doc#Client.Restore
 func (c *Client) Restore(ctx *Context) error {
-	log.Println("go-wrapper, client.go, Restore, 1")
 	if c.persister == nil {
 		return errors.New("persistence not enabled")
 	}
@@ -296,7 +254,6 @@ func (c *Client) Restore(ctx *Context) error {
 // a new channel with said peer. Wraps go-perun/peer/net/Dialer.Register.
 // ref https://pkg.go.dev/perun.network/go-perun/peer/net?tab=doc#Dialer.Register
 func (c *Client) AddPeer(perunID *Address, peerID string) {
-	log.Println("go-wrapper, client.go, AddPeer, 1")
 	c.dialer.Register((*ethwallet.Address)(&perunID.addr), peerID) // instead of fmt.Sprintf("%s:%d", host, port)
 }
 
@@ -304,7 +261,6 @@ func (c *Client) AddPeer(perunID *Address, peerID string) {
 // to the blockchain. Writes the addresses of the deployed contracts back to
 // the `cfg` struct.
 func setupContracts(ctx context.Context, cb ethchannel.ContractBackend, deployer accounts.Account, cfg *Config) error {
-	log.Println("go-wrapper, client.go, setupContracts, 1")
 	if cfg.Adjudicator == nil {
 		adjudicator, err := ethchannel.DeployAdjudicator(ctx, cb, deployer)
 		if err != nil {
@@ -326,7 +282,6 @@ func setupContracts(ctx context.Context, cb ethchannel.ContractBackend, deployer
 
 // OnChainBalance returns the on-chain balance for `address` in Wei.
 func (c *Client) OnChainBalance(ctx *Context, address *Address) (*BigInt, error) {
-	log.Println("go-wrapper, client.go, OnChainBalance, 1")
 	bal, err := c.ethClient.BalanceAt(ctx.ctx, common.Address(address.addr), nil)
 	return &BigInt{bal}, err
 }

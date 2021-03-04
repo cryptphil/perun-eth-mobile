@@ -13,7 +13,6 @@ import (
 
 	ethwallet "perun.network/go-perun/backend/ethereum/wallet"
 	"perun.network/go-perun/backend/ethereum/wallet/keystore"
-	"perun.network/go-perun/log"
 )
 
 // Wallet represents an ethereum wallet. It uses the go-ethereum keystore to
@@ -39,7 +38,6 @@ func NewWallet(path, password string) (*Wallet, error) {
 // 0x6aeeb7f09e757baa9d3935a042c3d0d46a2eda19e9b676283dce4eaf32e29dc9
 // Accounts can safely be imported more than once.
 func (w *Wallet) ImportAccount(secretKey string) (*Address, error) {
-	log.Println("go-wrapper, wallet.go, ImportAccount, Beginn")
 	if len(secretKey) != 66 || secretKey[:2] != "0x" {
 		return nil, errors.New("Secret key must start with 0x and be 66 characters long")
 	}
@@ -61,7 +59,6 @@ func (w *Wallet) ImportAccount(secretKey string) (*Address, error) {
 	if err != nil {
 		return nil, errors.WithMessage(err, "unlocking account")
 	}
-	log.Println("go-wrapper, wallet.go, ImportAccount, Ende")
 	return &Address{*(acc.Address()).(*ethwallet.Address)}, err
 }
 

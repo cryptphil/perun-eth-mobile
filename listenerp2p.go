@@ -12,56 +12,41 @@ import (
 	host "github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
 
-	"perun.network/go-perun/log"
 	wirenet "perun.network/go-perun/wire/net"
 )
 
-// ListenerP2P implements the go-perun/wire/net/Listener interface
+// ListenerP2P is a TCP listener and implements:
+// ref https://pkg.go.dev/perun.network/go-perun@v0.6.0/wire/net#Listener
 type ListenerP2P struct {
 	myHost host.Host
-	myRwc  io.ReadWriteCloser
+	myRwc  io.ReadWriteCloser // the newest incoming connection stream
 }
 
-// NewTCPListenerP2P ...
+// NewTCPListenerP2P sets the protocol handler of the libp2p host.
 func NewTCPListenerP2P(host host.Host) (*ListenerP2P, error) {
-	log.Println("go-wrapper, listenerp2p.go, NewTCPListenerP2P, 1")
-	//var myListener ListenerP2P = ListenerP2P{myHost: host, myRwc: nil}
 	myListener := ListenerP2P{myHost: host, myRwc: nil}
 	host.SetStreamHandler("/client", func(s network.Stream) {
-		log.Println("\nGot a new Stream!")
-		//rw := bufio.NewReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
-		//reader := bufio.NewReader(s)
-		//writer := bufio.NewWriter(s)
-		//var rwc io.ReadWriteCloser = &ClosableBufio{*reader, *writer}
 		myListener.myRwc = s
-		//myListener.Accept)
 	})
-
-	log.Println("go-wrapper, listenerp2p.go, NewTCPListenerP2P, 2")
 	return &myListener, nil
 }
 
-// Accept ..
+// Accept waits for incoming connection and returns a new I/O connection.
 func (l *ListenerP2P) Accept() (wirenet.Conn, error) {
-	log.Println("go-wrapper, listenerp2p.go, Accept, 1")
 	var tmp io.ReadWriteCloser
 	for {
 		time.Sleep(100 * time.Millisecond)
 		if l.myRwc != nil {
 			tmp = l.myRwc
 			l.myRwc = nil
-			log.Println("go-wrapper, listenerp2p.go, Accept, 1.5")
 			break
 		}
 	}
-
-	log.Println("go-wrapper, listenerp2p.go, Accept, 2")
 	return wirenet.NewIoConn(tmp), nil
 }
 
-// Close ..
+// Close closes the libp2p host.
 func (l *ListenerP2P) Close() error {
-	log.Println("go-wrapper, listenerp2p.go, Close, 1")
 	err := l.myHost.Close()
 	return err
 }
