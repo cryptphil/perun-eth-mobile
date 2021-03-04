@@ -30,7 +30,7 @@ gradle-app.setting
 # Android
 # Built application files
 *.apk
-#*.aar
+*.aar
 *.ap_
 *.aab
 
