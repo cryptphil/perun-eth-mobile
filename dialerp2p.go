@@ -8,7 +8,6 @@ package prnm
 import (
 	"context"
 	"sync"
-	"time"
 
 	host "github.com/libp2p/go-libp2p-core/host"
 	peer "github.com/libp2p/go-libp2p-core/peer"
@@ -25,17 +24,19 @@ import (
 // DialerP2P is a TCP dialer and implements:
 // ref https://pkg.go.dev/perun.network/go-perun@v0.6.0/wire/net#Dialer
 type DialerP2P struct {
-	myHost host.Host
+	myHost     host.Host // LibP2P host
+	serverAddr string    // relay server address
 
 	mutex sync.RWMutex
 	peers map[wallet.AddrKey]string
 }
 
 // NewTCPDialerP2P sets up the dialerp2p.
-func NewTCPDialerP2P(defaultTimeout time.Duration, host host.Host) *DialerP2P {
+func NewTCPDialerP2P(host host.Host, serverAddr string) *DialerP2P {
 	return &DialerP2P{
-		myHost: host,
-		peers:  make(map[wallet.AddrKey]string),
+		myHost:     host,
+		serverAddr: serverAddr,
+		peers:      make(map[wallet.AddrKey]string),
 	}
 }
 
@@ -73,7 +74,7 @@ func (d *DialerP2P) Dial(ctx context.Context, addr wire.Address) (wirenet.Conn, 
 		return nil, errors.Wrap(err, "peer id is not valid")
 	}
 
-	fullAddr := serverAddr + "/p2p/" + serverID + "/p2p-circuit/p2p/" + anotherClientID.Pretty()
+	fullAddr := d.serverAddr + "/p2p/" + serverID + "/p2p-circuit/p2p/" + anotherClientID.Pretty()
 	AnotherClientMA, err := ma.NewMultiaddr(fullAddr)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse multiaddress of another peer")

@@ -10,7 +10,7 @@ import (
 
 	"fmt"
 	"math/big"
-	"time"
+	nt "net"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
@@ -35,11 +35,8 @@ import (
 	"perun.network/go-perun/wire/net"
 )
 
-// constants of the relay server
-const (
-	serverID   = "QmVCPfUMr98PaaM8qbAQBgJ9jqc7XHpGp7AsyragdFDmgm"
-	serverAddr = "/ip4/130.83.239.105/tcp/5574"
-)
+// peer id of the relay server
+const serverID = "QmVCPfUMr98PaaM8qbAQBgJ9jqc7XHpGp7AsyragdFDmgm"
 
 type (
 	// Client is a state channel client. It is the central controller to interact
@@ -56,7 +53,7 @@ type (
 		wallet  *keystore.Wallet
 		onChain wallet.Account
 
-		//dialer *simple.Dialer
+		// dialer *simple.Dialer
 		dialer *DialerP2P
 		Bus    *net.Bus
 
@@ -87,7 +84,7 @@ func (c *Client) GetLibP2PID() string {
 //  - sets the `cfg`s Adjudicator and AssetHolder to the deployed contracts
 //    addresses in case they were deployed.
 func NewClient(ctx *Context, cfg *Config, w *Wallet, secretKey string) (*Client, error) {
-	host, err := CreateClientHost(secretKey) // creates a libp2p host connecting to the relay-server
+	host, serverAddr, err := CreateClientHost(secretKey) // creates a libp2p host connecting to the relay-server
 	if err != nil {
 		return nil, errors.WithMessagef(err, "creating libp2p client host")
 	}
@@ -99,7 +96,7 @@ func NewClient(ctx *Context, cfg *Config, w *Wallet, secretKey string) (*Client,
 		return nil, errors.WithMessagef(err, "listening on %s", endpoint)
 	}
 	// dialer := simple.NewTCPDialer(time.Second * 15)
-	dialer := NewTCPDialerP2P(time.Second*15, host) // creates a libp2p dialer
+	dialer := NewTCPDialerP2P(host, serverAddr) // creates a libp2p dialer
 	ethClient, err := ethclient.Dial(cfg.ETHNodeURL)
 	if err != nil {
 		return nil, errors.WithMessage(err, "connecting to ethereum node")
@@ -140,18 +137,27 @@ func NewClient(ctx *Context, cfg *Config, w *Wallet, secretKey string) (*Client,
 }
 
 // CreateClientHost creates a libp2p host connecting to a relay-server.
-func CreateClientHost(sk string) (host.Host, error) {
+func CreateClientHost(sk string) (host.Host, string, error) {
 	// Parse Relay Peer ID
 	id, err := peer.Decode(serverID)
 	if err != nil {
-		return nil, errors.WithMessage(err, "decoding peer id of relay server")
+		return nil, "", errors.WithMessage(err, "decoding peer id of relay server")
 	}
+
+	// Use IP address of 'relay.perun.network'
+	ips, err := nt.LookupIP("relay.perun.network")
+	if err != nil {
+		return nil, "", errors.WithMessage(err, "looking up IP addresses of relay.perun.network")
+	}
+	serverAddr := "/ip4/" + ips[0].String() + "/tcp/5574"
+
 	// Parse Relay Multiadress
 	tmp, err := ma.NewMultiaddr(serverAddr)
 	if err != nil {
-		return nil, errors.WithMessage(err, "parsing relay multiadress")
+		return nil, "", errors.WithMessage(err, "parsing relay multiadress")
 	}
 	addrs := []ma.Multiaddr{tmp}
+
 	// Build now relay's AddrInfo
 	relayInfo := peer.AddrInfo{
 		ID:    id,
@@ -161,11 +167,11 @@ func CreateClientHost(sk string) (host.Host, error) {
 	// Create private key from given ESCDA secret key.
 	data, err := crypto.HexToECDSA(sk[2:])
 	if err != nil {
-		return nil, errors.WithMessage(err, "parsing secp256k1 private key")
+		return nil, "", errors.WithMessage(err, "parsing secp256k1 private key")
 	}
 	prvKey, err := cry.UnmarshalSecp256k1PrivateKey(data.X.Bytes())
 	if err != nil {
-		return nil, errors.WithMessage(err, "unmarshaling secp256k1 private key")
+		return nil, "", errors.WithMessage(err, "unmarshaling secp256k1 private key")
 	}
 
 	// Construct a new libp2p client for our relay-server.
@@ -176,14 +182,15 @@ func CreateClientHost(sk string) (host.Host, error) {
 		libp2p.Identity(prvKey),
 	)
 	if err != nil {
-		return nil, errors.WithMessage(err, "constructing a new libp2p node")
+		return nil, "", errors.WithMessage(err, "constructing a new libp2p node")
 	}
 
 	// Connect to relay server
 	if err := client.Connect(context.Background(), relayInfo); err != nil {
-		return nil, errors.WithMessage(err, "connecting to the relay server")
+		return nil, "", errors.WithMessage(err, "connecting to the relay server")
 	}
-	return client, nil
+
+	return client, serverAddr, nil
 }
 
 // Close closes the client and its PersistRestorer to synchronize the database.
