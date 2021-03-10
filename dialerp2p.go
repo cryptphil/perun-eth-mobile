@@ -55,28 +55,28 @@ func (d *DialerP2P) Dial(ctx context.Context, addr wire.Address) (wirenet.Conn, 
 		return nil, errors.New("peer not found")
 	}
 
-	/* Generate Peer ID from secret key of alice
-	sk := "0x6aeeb7f09e757baa9d3935a042c3d0d46a2eda19e9b676283dce4eaf32e29dc9" // secret key of alice
-	data, err := crypto.HexToECDSA(sk[2:])
-	if err != nil {
-		panic(err)
-	}
-	prvKey, err := cry.UnmarshalSecp256k1PrivateKey(data.X.Bytes())
-	if err != nil {
-		panic(err)
-	}
-	pubKey := prvKey.GetPublic()
-	anotherClientID, err := peer.IDFromPublicKey(pubKey) */
+	// Generate Peer ID from secret key of alice
+	// sk := "0x6aeeb7f09e757baa9d3935a042c3d0d46a2eda19e9b676283dce4eaf32e29dc9" // secret key of alice
+	// data, err := crypto.HexToECDSA(sk[2:])
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// prvKey, err := cry.UnmarshalSecp256k1PrivateKey(data.X.Bytes())
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// pubKey := prvKey.GetPublic()
+	// anotherClientID, err := peer.IDFromPublicKey(pubKey)
 
 	anotherClientID, err := peer.Decode(peerID)
 	if err != nil {
-		return nil, errors.New("peer id is not valid")
+		return nil, errors.Wrap(err, "peer id is not valid")
 	}
 
 	fullAddr := serverAddr + "/p2p/" + serverID + "/p2p-circuit/p2p/" + anotherClientID.Pretty()
 	AnotherClientMA, err := ma.NewMultiaddr(fullAddr)
 	if err != nil {
-		panic(err)
+		return nil, errors.Wrap(err, "failed to parse multiaddress of another peer")
 	}
 
 	// Redialing hacked
@@ -86,13 +86,13 @@ func (d *DialerP2P) Dial(ctx context.Context, addr wire.Address) (wirenet.Conn, 
 		Addrs: []ma.Multiaddr{AnotherClientMA},
 	}
 	if err := d.myHost.Connect(context.Background(), anotherClientInfo); err != nil {
-		panic(err)
+		return nil, errors.Wrap(err, "failed to dial peer: failed to connecting to peer")
 	}
 
 	// Connecting
 	s, err := d.myHost.NewStream(context.Background(), anotherClientInfo.ID, "/client")
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to dial peer")
+		return nil, errors.Wrap(err, "failed to dial peer: failed to creating a new stream")
 	}
 
 	return wirenet.NewIoConn(s), nil

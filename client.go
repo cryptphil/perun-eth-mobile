@@ -37,8 +37,8 @@ import (
 
 // constants of the relay server
 const (
-	serverID   = "QmPyRxsUQfAWR6uYYkSoZQsaM1pra2qpUHE3CMTgrfsTEV"
-	serverAddr = "/ip4/77.185.165.162/tcp/5574"
+	serverID   = "QmVCPfUMr98PaaM8qbAQBgJ9jqc7XHpGp7AsyragdFDmgm"
+	serverAddr = "/ip4/130.83.239.105/tcp/5574"
 )
 
 type (
@@ -87,15 +87,18 @@ func (c *Client) GetLibP2PID() string {
 //  - sets the `cfg`s Adjudicator and AssetHolder to the deployed contracts
 //    addresses in case they were deployed.
 func NewClient(ctx *Context, cfg *Config, w *Wallet, secretKey string) (*Client, error) {
-	host := CreateClientHost(secretKey) // creates a libp2p host connecting to the relay-server
+	host, err := CreateClientHost(secretKey) // creates a libp2p host connecting to the relay-server
+	if err != nil {
+		return nil, errors.WithMessagef(err, "creating libp2p client host")
+	}
 
 	endpoint := fmt.Sprintf("%s:%d", cfg.IP, cfg.Port)
-	//listener, err := simple.NewTCPListener(endpoint)
+	// listener, err := simple.NewTCPListener(endpoint)
 	listener, err := NewTCPListenerP2P(host) // creates a libp2p listener
 	if err != nil {
 		return nil, errors.WithMessagef(err, "listening on %s", endpoint)
 	}
-	//dialer := simple.NewTCPDialer(time.Second * 15)
+	// dialer := simple.NewTCPDialer(time.Second * 15)
 	dialer := NewTCPDialerP2P(time.Second*15, host) // creates a libp2p dialer
 	ethClient, err := ethclient.Dial(cfg.ETHNodeURL)
 	if err != nil {
@@ -137,16 +140,16 @@ func NewClient(ctx *Context, cfg *Config, w *Wallet, secretKey string) (*Client,
 }
 
 // CreateClientHost creates a libp2p host connecting to a relay-server.
-func CreateClientHost(sk string) host.Host {
+func CreateClientHost(sk string) (host.Host, error) {
 	// Parse Relay Peer ID
 	id, err := peer.Decode(serverID)
 	if err != nil {
-		panic(err)
+		return nil, errors.WithMessage(err, "decoding peer id of relay server")
 	}
 	// Parse Relay Multiadress
 	tmp, err := ma.NewMultiaddr(serverAddr)
 	if err != nil {
-		panic(err)
+		return nil, errors.WithMessage(err, "parsing relay multiadress")
 	}
 	addrs := []ma.Multiaddr{tmp}
 	// Build now relay's AddrInfo
@@ -158,11 +161,11 @@ func CreateClientHost(sk string) host.Host {
 	// Create private key from given ESCDA secret key.
 	data, err := crypto.HexToECDSA(sk[2:])
 	if err != nil {
-		panic(err)
+		return nil, errors.WithMessage(err, "parsing secp256k1 private key")
 	}
 	prvKey, err := cry.UnmarshalSecp256k1PrivateKey(data.X.Bytes())
 	if err != nil {
-		panic(err)
+		return nil, errors.WithMessage(err, "unmarshaling secp256k1 private key")
 	}
 
 	// Construct a new libp2p client for our relay-server.
@@ -173,14 +176,14 @@ func CreateClientHost(sk string) host.Host {
 		libp2p.Identity(prvKey),
 	)
 	if err != nil {
-		panic(err)
+		return nil, errors.WithMessage(err, "constructing a new libp2p node")
 	}
 
 	// Connect to relay server
 	if err := client.Connect(context.Background(), relayInfo); err != nil {
-		panic(err)
+		return nil, errors.WithMessage(err, "connecting to the relay server")
 	}
-	return client
+	return client, nil
 }
 
 // Close closes the client and its PersistRestorer to synchronize the database.
