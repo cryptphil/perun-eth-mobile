@@ -6,6 +6,7 @@
 package prnm
 
 import (
+	"github.com/perun-network/perun-eth-mobile/payment"
 	"github.com/pkg/errors"
 
 	ethwallet "perun.network/go-perun/backend/ethereum/wallet"
@@ -33,6 +34,12 @@ func (s *State) GetVersion() int64 {
 // balances.
 func (s *State) GetBalances() *BigInts {
 	return &BigInts{values: s.s.Balances[0]}
+}
+
+// GetData returns the invoice data of the current state.
+func (s *State) GetData() []byte {
+	i := *s.s.Data.(*payment.Invoice)
+	return i[:]
 }
 
 // IsFinal indicates that the channel is in its final state.
@@ -112,10 +119,16 @@ func (c *PaymentChannel) Watch(h ConcludedEventHandler) error {
 	return c.ch.Watch(w)
 }
 
-// Send pays `amount` to the counterparty. Only positive amounts are supported.
-func (c *PaymentChannel) Send(ctx *Context, amount *BigInt) error {
+// Send pays `amount` to the counterparty, where this update can be identified
+// with the `invoiceId`. Only positive amounts are supported.
+func (c *PaymentChannel) Send(ctx *Context, amount *BigInt, invoiceID []byte) error {
 	if amount.i.Sign() < 1 {
 		return errors.New("Only positive amounts supported in send")
+	}
+
+	var i payment.Invoice
+	if invoiceID != nil {
+		copy(i[:], invoiceID)
 	}
 
 	return c.ch.UpdateBy(ctx.ctx, func(state *channel.State) error {
@@ -124,6 +137,7 @@ func (c *PaymentChannel) Send(ctx *Context, amount *BigInt) error {
 		bals := state.Allocation.Balances[0]
 		bals[my].Sub(bals[my], amount.i)
 		bals[other].Add(bals[other], amount.i)
+		state.Data = &i
 		return nil
 	})
 }
@@ -155,6 +169,14 @@ func (c *PaymentChannel) Settle(ctx *Context, secondary bool) error {
 		return errors.WithMessage(err, "registering")
 	}
 	return c.ch.Settle(ctx.ctx, secondary)
+}
+
+// Close releases all resources that are associated with the channel and
+// ensures that the watcher will return.
+// `Close` should only be called on settled channels to prevent loss of funds.
+// ref https://pkg.go.dev/perun.network/go-perun/client?tab=doc#Channel.Close
+func (c *PaymentChannel) Close() error {
+	return c.ch.Close()
 }
 
 // GetState returns the current state. Do not modify it.

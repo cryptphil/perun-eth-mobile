@@ -22,11 +22,13 @@ import (
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
+	"github.com/perun-network/perun-eth-mobile/payment"
 	"github.com/pkg/errors"
 
 	ethchannel "perun.network/go-perun/backend/ethereum/channel"
 	ethwallet "perun.network/go-perun/backend/ethereum/wallet"
 	"perun.network/go-perun/backend/ethereum/wallet/keystore"
+	"perun.network/go-perun/channel"
 	"perun.network/go-perun/channel/persistence/keyvalue"
 	"perun.network/go-perun/client"
 	"perun.network/go-perun/log"
@@ -125,6 +127,9 @@ func NewClient(ctx *Context, cfg *Config, w *Wallet, secretKey string) (*Client,
 		return nil, errors.WithMessage(err, "creating client")
 	}
 	go bus.Listen(listener)
+
+	app := &payment.App{}
+	channel.RegisterApp(app)
 
 	return &Client{cfg: cfg, ethClient: ethClient,
 		client:    c,
