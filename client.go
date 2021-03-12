@@ -74,6 +74,15 @@ func (c *Client) GetLibP2PID() string {
 	return c.PeerID
 }
 
+// GetLibP2PID checks if the given peer id is valid.
+func CheckPeerID(peerID string) bool {
+	_, err := peer.Decode(peerID);
+	if err != nil {
+		return false;
+	}
+	return true;
+}
+
 // NewClient sets up a new Client with configuration `cfg`.
 // The Client:
 //  - imports the keystore and unlocks the account
