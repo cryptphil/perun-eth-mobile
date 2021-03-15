@@ -38,7 +38,7 @@ import (
 )
 
 // peer id of the relay server
-const serverID = "QmPyRxsUQfAWR6uYYkSoZQsaM1pra2qpUHE3CMTgrfsTEV" //  QmVCPfUMr98PaaM8qbAQBgJ9jqc7XHpGp7AsyragdFDmgm
+const serverID = "QmVCPfUMr98PaaM8qbAQBgJ9jqc7XHpGp7AsyragdFDmgm" //  QmPyRxsUQfAWR6uYYkSoZQsaM1pra2qpUHE3CMTgrfsTEV
 
 type (
 	// Client is a state channel client. It is the central controller to interact
