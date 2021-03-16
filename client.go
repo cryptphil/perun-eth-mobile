@@ -7,14 +7,21 @@ package prnm
 
 import (
 	"context"
+
 	"fmt"
 	"math/big"
-	"time"
+	net2 "net"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/libp2p/go-libp2p"
+	libp2pCrypto "github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p-core/host"
+	"github.com/libp2p/go-libp2p-core/peer"
+	ma "github.com/multiformats/go-multiaddr"
 	"github.com/perun-network/perun-eth-mobile/payment"
 	"github.com/pkg/errors"
 
@@ -28,8 +35,10 @@ import (
 	"perun.network/go-perun/pkg/sortedkv/leveldb"
 	"perun.network/go-perun/wallet"
 	"perun.network/go-perun/wire/net"
-	"perun.network/go-perun/wire/net/simple"
 )
+
+// peer id of the relay server
+const serverID = "QmVCPfUMr98PaaM8qbAQBgJ9jqc7XHpGp7AsyragdFDmgm"
 
 type (
 	// Client is a state channel client. It is the central controller to interact
@@ -46,8 +55,10 @@ type (
 		wallet  *keystore.Wallet
 		onChain wallet.Account
 
-		dialer *simple.Dialer
-		bus    *net.Bus
+		dialer *DialerP2P
+		Bus    *net.Bus
+
+		PeerID string // libp2p peer id
 	}
 
 	// NewChannelCallback wraps a `func(*PaymentChannel)`
@@ -57,10 +68,15 @@ type (
 	}
 )
 
+// GetLibP2PID returns the peer id of the client.
+func (c *Client) GetLibP2PID() string {
+	return c.PeerID
+}
+
 // NewClient sets up a new Client with configuration `cfg`.
 // The Client:
 //  - imports the keystore and unlocks the account
-//  - listens on IP:port
+//  - creates a libp2p host connecting to the relay-server
 //  - connects to the eth node
 //  - in case either the Adjudicator and AssetHolder of the `cfg` are nil, it
 //    deploys needed contract. There is currently no check that the
@@ -68,13 +84,20 @@ type (
 //    not nil.
 //  - sets the `cfg`s Adjudicator and AssetHolder to the deployed contracts
 //    addresses in case they were deployed.
-func NewClient(ctx *Context, cfg *Config, w *Wallet) (*Client, error) {
+func NewClient(ctx *Context, cfg *Config, w *Wallet, secretKey string) (*Client, error) {
+	// Creates a libp2p host connecting to the relay-server.
+	host, serverAddr, err := CreateClientHost(secretKey)
+	if err != nil {
+		return nil, errors.WithMessagef(err, "creating libp2p client host")
+	}
+
 	endpoint := fmt.Sprintf("%s:%d", cfg.IP, cfg.Port)
-	listener, err := simple.NewTCPListener(endpoint)
+	listener, err := NewTCPListenerP2P(host) // Creates a libp2p listener.
 	if err != nil {
 		return nil, errors.WithMessagef(err, "listening on %s", endpoint)
 	}
-	dialer := simple.NewTCPDialer(time.Second * 15)
+
+	dialer := NewTCPDialerP2P(host, serverAddr) // Creates a libp2p dialer.
 	ethClient, err := ethclient.Dial(cfg.ETHNodeURL)
 	if err != nil {
 		return nil, errors.WithMessage(err, "connecting to ethereum node")
@@ -113,7 +136,65 @@ func NewClient(ctx *Context, cfg *Config, w *Wallet) (*Client, error) {
 		wallet:    w.w,
 		onChain:   acc,
 		dialer:    dialer,
-		bus:       bus}, nil
+		Bus:       bus,
+		PeerID:    host.ID().Pretty()}, nil
+}
+
+// CreateClientHost creates a libp2p host connecting to a relay-server.
+func CreateClientHost(sk string) (host.Host, string, error) {
+	// Parse Relay Peer ID
+	id, err := peer.Decode(serverID)
+	if err != nil {
+		return nil, "", errors.WithMessage(err, "decoding peer id of relay server")
+	}
+
+	// Use IP address of 'relay.perun.network'.
+	ips, err := net2.LookupIP("relay.perun.network")
+	if err != nil {
+		return nil, "", errors.WithMessage(err, "looking up IP addresses of relay.perun.network")
+	}
+	serverAddr := "/ip4/" + ips[0].String() + "/tcp/5574"
+
+	// Parse relay's multiaddress.
+	tmp, err := ma.NewMultiaddr(serverAddr)
+	if err != nil {
+		return nil, "", errors.WithMessage(err, "parsing relay multiadress")
+	}
+	addrs := []ma.Multiaddr{tmp}
+
+	// Init relay's AddrInfo.
+	relayInfo := peer.AddrInfo{
+		ID:    id,
+		Addrs: addrs,
+	}
+
+	// Create private key from given ESCDA secret key.
+	data, err := crypto.HexToECDSA(sk[2:])
+	if err != nil {
+		return nil, "", errors.WithMessage(err, "parsing secp256k1 private key")
+	}
+	prvKey, err := libp2pCrypto.UnmarshalSecp256k1PrivateKey(data.X.Bytes())
+	if err != nil {
+		return nil, "", errors.WithMessage(err, "unmarshaling secp256k1 private key")
+	}
+
+	// Construct a new libp2p client for our relay-server.
+	// Identity(prvKey)	- Use a private key to generate the ID of the host.
+	client, err := libp2p.New(
+		context.Background(),
+		libp2p.EnableRelay(),
+		libp2p.Identity(prvKey),
+	)
+	if err != nil {
+		return nil, "", errors.WithMessage(err, "constructing a new libp2p node")
+	}
+
+	// Connect to relay server.
+	if err := client.Connect(context.Background(), relayInfo); err != nil {
+		return nil, "", errors.WithMessage(err, "connecting to the relay server")
+	}
+
+	return client, serverAddr, nil
 }
 
 // Close closes the client and its PersistRestorer to synchronize the database.
@@ -123,7 +204,7 @@ func (c *Client) Close() error {
 	if err := c.client.Close(); err != nil {
 		return errors.WithMessage(err, "closing client")
 	}
-	if err := c.bus.Close(); err != nil {
+	if err := c.Bus.Close(); err != nil {
 		return errors.WithMessage(err, "closing bus")
 	}
 	if c.persister != nil {
@@ -186,8 +267,8 @@ func (c *Client) Restore(ctx *Context) error {
 // AddPeer adds a new peer to the client. Must be called before proposing
 // a new channel with said peer. Wraps go-perun/peer/net/Dialer.Register.
 // ref https://pkg.go.dev/perun.network/go-perun/peer/net?tab=doc#Dialer.Register
-func (c *Client) AddPeer(perunID *Address, host string, port int) {
-	c.dialer.Register((*ethwallet.Address)(&perunID.addr), fmt.Sprintf("%s:%d", host, port))
+func (c *Client) AddPeer(perunID *Address, peerID string) {
+	c.dialer.Register((*ethwallet.Address)(&perunID.addr), peerID) // instead of fmt.Sprintf("%s:%d", host, port)
 }
 
 // setupContracts checks which contracts of the `cfg` are nil and deploys them

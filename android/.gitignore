@@ -1,6 +1,7 @@
 # Binding files
 app/prnm-sources.jar
-app/prnm.aar
+app/src/main/libs/prnm-sources.jar
+
 
 # Android studio
 .project
