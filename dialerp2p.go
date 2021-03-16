@@ -40,8 +40,8 @@ func NewTCPDialerP2P(host host.Host, serverAddr string) *DialerP2P {
 	}
 }
 
-// get() returns the peer id to a given ethereum address.
-func (d *DialerP2P) get(key wallet.AddrKey) (string, bool) {
+// getPeerId returns the peerId to a given Ethereum address.
+func (d *DialerP2P) getPeerId(key wallet.AddrKey) (string, bool) {
 	d.mutex.RLock()
 	defer d.mutex.RUnlock()
 
@@ -50,8 +50,8 @@ func (d *DialerP2P) get(key wallet.AddrKey) (string, bool) {
 }
 
 // Dial implements Dialer.Dial().
-func (d *DialerP2P) Dial(ctx context.Context, addr wire.Address) (wirenet.Conn, error) {
-	peerID, ok := d.get(wallet.Key(addr))
+func (d *DialerP2P) Dial(_ context.Context, addr wire.Address) (wirenet.Conn, error) {
+	peerID, ok := d.getPeerId(wallet.Key(addr))
 	if !ok {
 		return nil, errors.New("peer not found")
 	}
@@ -62,22 +62,22 @@ func (d *DialerP2P) Dial(ctx context.Context, addr wire.Address) (wirenet.Conn, 
 	}
 
 	fullAddr := d.serverAddr + "/p2p/" + serverID + "/p2p-circuit/p2p/" + anotherClientID.Pretty()
-	AnotherClientMA, err := ma.NewMultiaddr(fullAddr)
+	anotherClientMA, err := ma.NewMultiaddr(fullAddr)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse multiaddress of another peer")
 	}
 
-	// Redialing hacked
+	// Redialing hacked.
 	d.myHost.Network().(*swarm.Swarm).Backoff().Clear(anotherClientID)
 	anotherClientInfo := peer.AddrInfo{
 		ID:    anotherClientID,
-		Addrs: []ma.Multiaddr{AnotherClientMA},
+		Addrs: []ma.Multiaddr{anotherClientMA},
 	}
 	if err := d.myHost.Connect(context.Background(), anotherClientInfo); err != nil {
 		return nil, errors.Wrap(err, "failed to dial peer: failed to connecting to peer")
 	}
 
-	// Connecting
+	// Connecting.
 	s, err := d.myHost.NewStream(context.Background(), anotherClientInfo.ID, "/client")
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to dial peer: failed to creating a new stream")

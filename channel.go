@@ -121,14 +121,14 @@ func (c *PaymentChannel) Watch(h ConcludedEventHandler) error {
 
 // Send pays `amount` to the counterparty, where this update can be identified
 // with the `invoiceId`. Only positive amounts are supported.
-func (c *PaymentChannel) Send(ctx *Context, amount *BigInt, invoiceID []byte) error {
+func (c *PaymentChannel) Send(ctx *Context, amount *BigInt, invoiceId []byte) error {
 	if amount.i.Sign() < 1 {
 		return errors.New("Only positive amounts supported in send")
 	}
 
 	var i payment.Invoice
-	if invoiceID != nil {
-		copy(i[:], invoiceID)
+	if invoiceId != nil {
+		copy(i[:], invoiceId)
 	}
 
 	return c.ch.UpdateBy(ctx.ctx, func(state *channel.State) error {

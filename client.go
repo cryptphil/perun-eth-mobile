@@ -10,7 +10,7 @@ import (
 
 	"fmt"
 	"math/big"
-	nt "net"
+	net2 "net"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
@@ -18,7 +18,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/libp2p/go-libp2p"
-	cry "github.com/libp2p/go-libp2p-core/crypto"
+	libp2pCrypto "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
@@ -55,7 +55,6 @@ type (
 		wallet  *keystore.Wallet
 		onChain wallet.Account
 
-		// dialer *simple.Dialer
 		dialer *DialerP2P
 		Bus    *net.Bus
 
@@ -86,19 +85,19 @@ func (c *Client) GetLibP2PID() string {
 //  - sets the `cfg`s Adjudicator and AssetHolder to the deployed contracts
 //    addresses in case they were deployed.
 func NewClient(ctx *Context, cfg *Config, w *Wallet, secretKey string) (*Client, error) {
-	host, serverAddr, err := CreateClientHost(secretKey) // creates a libp2p host connecting to the relay-server
+	// Creates a libp2p host connecting to the relay-server.
+	host, serverAddr, err := CreateClientHost(secretKey)
 	if err != nil {
 		return nil, errors.WithMessagef(err, "creating libp2p client host")
 	}
 
 	endpoint := fmt.Sprintf("%s:%d", cfg.IP, cfg.Port)
-	// listener, err := simple.NewTCPListener(endpoint)
-	listener, err := NewTCPListenerP2P(host) // creates a libp2p listener
+	listener, err := NewTCPListenerP2P(host) // Creates a libp2p listener.
 	if err != nil {
 		return nil, errors.WithMessagef(err, "listening on %s", endpoint)
 	}
-	// dialer := simple.NewTCPDialer(time.Second * 15)
-	dialer := NewTCPDialerP2P(host, serverAddr) // creates a libp2p dialer
+
+	dialer := NewTCPDialerP2P(host, serverAddr) // Creates a libp2p dialer.
 	ethClient, err := ethclient.Dial(cfg.ETHNodeURL)
 	if err != nil {
 		return nil, errors.WithMessage(err, "connecting to ethereum node")
@@ -149,21 +148,21 @@ func CreateClientHost(sk string) (host.Host, string, error) {
 		return nil, "", errors.WithMessage(err, "decoding peer id of relay server")
 	}
 
-	// Use IP address of 'relay.perun.network'
-	ips, err := nt.LookupIP("relay.perun.network")
+	// Use IP address of 'relay.perun.network'.
+	ips, err := net2.LookupIP("relay.perun.network")
 	if err != nil {
 		return nil, "", errors.WithMessage(err, "looking up IP addresses of relay.perun.network")
 	}
 	serverAddr := "/ip4/" + ips[0].String() + "/tcp/5574"
 
-	// Parse Relay Multiadress
+	// Parse relay's multiaddress.
 	tmp, err := ma.NewMultiaddr(serverAddr)
 	if err != nil {
 		return nil, "", errors.WithMessage(err, "parsing relay multiadress")
 	}
 	addrs := []ma.Multiaddr{tmp}
 
-	// Build now relay's AddrInfo
+	// Init relay's AddrInfo.
 	relayInfo := peer.AddrInfo{
 		ID:    id,
 		Addrs: addrs,
@@ -174,7 +173,7 @@ func CreateClientHost(sk string) (host.Host, string, error) {
 	if err != nil {
 		return nil, "", errors.WithMessage(err, "parsing secp256k1 private key")
 	}
-	prvKey, err := cry.UnmarshalSecp256k1PrivateKey(data.X.Bytes())
+	prvKey, err := libp2pCrypto.UnmarshalSecp256k1PrivateKey(data.X.Bytes())
 	if err != nil {
 		return nil, "", errors.WithMessage(err, "unmarshaling secp256k1 private key")
 	}
@@ -190,7 +189,7 @@ func CreateClientHost(sk string) (host.Host, string, error) {
 		return nil, "", errors.WithMessage(err, "constructing a new libp2p node")
 	}
 
-	// Connect to relay server
+	// Connect to relay server.
 	if err := client.Connect(context.Background(), relayInfo); err != nil {
 		return nil, "", errors.WithMessage(err, "connecting to the relay server")
 	}
