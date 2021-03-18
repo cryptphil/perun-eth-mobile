@@ -41,19 +41,22 @@ func NewTCPDialerP2P(host host.Host, serverAddr string) *DialerP2P {
 }
 
 // getPeerId returns the peerId to a given Ethereum address.
-func (d *DialerP2P) getPeerId(key wallet.AddrKey) (string, bool) {
+func (d *DialerP2P) getPeerId(key wallet.AddrKey) (string, error) {
 	d.mutex.RLock()
 	defer d.mutex.RUnlock()
 
 	peerID, ok := d.peers[key]
-	return peerID, ok
+	if !ok {
+		return "", errors.New("PeerId for given address not found")
+	}
+	return peerID, nil
 }
 
 // Dial implements Dialer.Dial().
 func (d *DialerP2P) Dial(_ context.Context, addr wire.Address) (wirenet.Conn, error) {
-	peerID, ok := d.getPeerId(wallet.Key(addr))
-	if !ok {
-		return nil, errors.New("peer not found")
+	peerID, err := d.getPeerId(wallet.Key(addr))
+	if err != nil {
+		return nil, err
 	}
 
 	anotherClientID, err := peer.Decode(peerID)

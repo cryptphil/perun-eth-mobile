@@ -6,9 +6,9 @@
 package prnm
 
 import (
-	"github.com/perun-network/perun-eth-mobile/payment"
 	"github.com/pkg/errors"
 
+	app "github.com/perun-network/perun-eth-mobile/app"
 	ethwallet "perun.network/go-perun/backend/ethereum/wallet"
 	"perun.network/go-perun/channel"
 	"perun.network/go-perun/client"
@@ -44,16 +44,20 @@ func (c *Client) ProposeChannel(
 		Assets:   []channel.Asset{(*ethwallet.Address)(&c.cfg.AssetHolder.addr)},
 		Balances: [][]channel.Bal{initialBals.values},
 	}
-	app := &payment.App{}
-	channel.RegisterApp(app)
-	initInvoice := payment.Invoice([32]byte{})
+	paymentApp := &app.PaymentApp{}
+	channel.RegisterApp(paymentApp)
+
+	appData := app.PaymentData{
+		Invoice: [32]byte{},
+		PeerId:  c.PeerID,
+	}
 
 	prop, err := client.NewLedgerChannelProposal(
 		uint64(challengeDuration),
 		c.wallet.NewAccount().Address(),
 		alloc,
 		[]wire.Address{c.onChain.Address(), (*ethwallet.Address)(&perunID.addr)},
-		client.WithApp(app, &initInvoice))
+		client.WithApp(paymentApp, &appData))
 	if err != nil {
 		return nil, err
 	}
@@ -82,6 +86,7 @@ type (
 	// The proposer has index 0 and proposee index 1.
 	ChannelProposal struct {
 		Peer              *Address // The peer proposing the channel.
+		PeerId            string   // The libp2p peerId of the peer.
 		ChallengeDuration int64    // Proposed challenge duration in case of disputes, in seconds.
 		InitBals          *BigInts // Initial channel balances.
 	}
@@ -98,7 +103,7 @@ type (
 )
 
 // HandleProposal implements the client.ProposalHandler interface by converting the
-// passed types from the go-perun/client package into their local conterparts
+// passed types from the go-perun/client package into their local counterparts
 // and then calling the prnm.ProposalHandler.
 func (h *proposalHandler) HandleProposal(_prop client.ChannelProposal, _resp *client.ProposalResponder) {
 	ledgerProp, ok := _prop.(*client.LedgerChannelProposal)
@@ -111,12 +116,16 @@ func (h *proposalHandler) HandleProposal(_prop client.ChannelProposal, _resp *cl
 		log.Warn("Ignored proposal: ", err)
 		return
 	}
+
+	initData := ledgerProp.InitData.(*app.PaymentData)
+
 	// Security Note: we don't check the remote nonce or channel participant. If
 	// this code were to evolve to production grade, this needs to be taken care
 	// of. In this case, at least the Nonce should be part of the ChannelProposal
 	// struct, as is the case for the client.ChannelProposal.
 	prop := &ChannelProposal{
 		Peer:              &Address{*(ledgerProp.Peers[0]).(*ethwallet.Address)},
+		PeerId:            initData.PeerId,
 		ChallengeDuration: int64(ledgerProp.ChallengeDuration),
 		InitBals:          &BigInts{ledgerProp.InitBals.Balances[0]},
 	}
@@ -154,8 +163,8 @@ func (r *ProposalResponder) Reject(ctx *Context, reason string) error {
 func checkProp(prop client.LedgerChannelProposal) error {
 	if len(prop.InitBals.Assets) != 1 {
 		return errors.New("only single-asset channels are supported")
-	} else if _, ok := prop.App.(*payment.App); !ok {
-		return errors.New("only payment channels are supported")
+	} else if _, ok := prop.App.(*app.PaymentApp); !ok {
+		return errors.New("only payment app channels are supported")
 	} else {
 		return nil
 	}

@@ -6,7 +6,7 @@
 package prnm
 
 import (
-	"github.com/perun-network/perun-eth-mobile/payment"
+	"github.com/perun-network/perun-eth-mobile/app"
 	"github.com/pkg/errors"
 
 	ethwallet "perun.network/go-perun/backend/ethereum/wallet"
@@ -36,9 +36,9 @@ func (s *State) GetBalances() *BigInts {
 	return &BigInts{values: s.s.Balances[0]}
 }
 
-// GetData returns the invoice data of the current state.
-func (s *State) GetData() []byte {
-	i := *s.s.Data.(*payment.Invoice)
+// GetInvoice returns the invoice of the current state.
+func (s *State) GetInvoice() []byte {
+	i := s.s.Data.(*app.PaymentData).Invoice
 	return i[:]
 }
 
@@ -79,7 +79,7 @@ func (p *Params) GetParts() *Addresses {
 
 type (
 	// PaymentChannel is a convenience wrapper for go-perun/client.Channel
-	// which provides all necessary functionality of a two-party payment channel.
+	// which provides all necessary functionality of a two-party app channel.
 	// ref https://pkg.go.dev/perun.network/go-perun/client?tab=doc#Channel
 	PaymentChannel struct {
 		ch *client.Channel
@@ -126,9 +126,9 @@ func (c *PaymentChannel) Send(ctx *Context, amount *BigInt, invoiceId []byte) er
 		return errors.New("Only positive amounts supported in send")
 	}
 
-	var i payment.Invoice
+	var d app.PaymentData
 	if invoiceId != nil {
-		copy(i[:], invoiceId)
+		copy(d.Invoice[:], invoiceId)
 	}
 
 	return c.ch.UpdateBy(ctx.ctx, func(state *channel.State) error {
@@ -137,7 +137,7 @@ func (c *PaymentChannel) Send(ctx *Context, amount *BigInt, invoiceId []byte) er
 		bals := state.Allocation.Balances[0]
 		bals[my].Sub(bals[my], amount.i)
 		bals[other].Add(bals[other], amount.i)
-		state.Data = &i
+		state.Data = &d
 		return nil
 	})
 }

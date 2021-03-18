@@ -7,7 +7,6 @@ package prnm
 
 import (
 	"context"
-
 	"fmt"
 	"math/big"
 	net2 "net"
@@ -22,7 +21,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
-	"github.com/perun-network/perun-eth-mobile/payment"
+	"github.com/perun-network/perun-eth-mobile/app"
 	"github.com/pkg/errors"
 
 	ethchannel "perun.network/go-perun/backend/ethereum/channel"
@@ -37,7 +36,7 @@ import (
 	"perun.network/go-perun/wire/net"
 )
 
-// peer id of the relay server
+// PeerId of the relay server.
 const serverID = "QmVCPfUMr98PaaM8qbAQBgJ9jqc7XHpGp7AsyragdFDmgm"
 
 type (
@@ -127,7 +126,7 @@ func NewClient(ctx *Context, cfg *Config, w *Wallet, secretKey string) (*Client,
 	}
 	go bus.Listen(listener)
 
-	app := &payment.App{}
+	app := &app.PaymentApp{}
 	channel.RegisterApp(app)
 
 	return &Client{cfg: cfg, ethClient: ethClient,
@@ -185,6 +184,7 @@ func CreateClientHost(sk string) (host.Host, string, error) {
 		libp2p.EnableRelay(),
 		libp2p.Identity(prvKey),
 	)
+
 	if err != nil {
 		return nil, "", errors.WithMessage(err, "constructing a new libp2p node")
 	}
