@@ -6,6 +6,10 @@
 package prnm
 
 import (
+	"crypto/ecdsa"
+	crand "crypto/rand"
+	"encoding/hex"
+
 	"github.com/ethereum/go-ethereum/accounts"
 	ethkeystore "github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -66,6 +70,16 @@ func (w *Wallet) ImportAccount(secretKey string) (*Address, error) {
 // ref https://pkg.go.dev/perun.network/go-perun/backend/ethereum/wallet?tab=doc#Wallet.NewAccount
 func (w *Wallet) CreateAccount() *Address {
 	return &Address{ethwallet.Address(w.w.NewAccount().Account.Address)}
+}
+
+// NewRandomKey returns a randomly generated ECSDA secret key as a string.
+func (w *Wallet) NewRandomKey() (string, error) {
+	key, err := ecdsa.GenerateKey(crypto.S256(), crand.Reader)
+	if err != nil {
+		return "", errors.WithMessage(err, "generating key")
+	}
+	sk := "0x" + hex.EncodeToString(crypto.FromECDSA(key))
+	return sk, nil
 }
 
 func (w *Wallet) unlock(a Address) (*keystore.Account, error) {

@@ -107,7 +107,7 @@ func NewClient(ctx *Context, cfg *Config, w *Wallet, secretKey string) (*Client,
 		return nil, errors.WithMessage(err, "finding account")
 	}
 
-	signer := types.NewEIP155Signer(big.NewInt(1337))
+	signer := types.NewEIP155Signer(big.NewInt(5))
 	cb := ethchannel.NewContractBackend(ethClient, keystore.NewTransactor(*w.w, signer))
 	if err := setupContracts(ctx.ctx, cb, acc.Account, cfg); err != nil {
 		return nil, errors.WithMessage(err, "setting up contracts")
